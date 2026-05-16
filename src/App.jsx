@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import * as XLSX from "xlsx";
 
-const SUPABASE_URL = "https://rmokkujpnptiugqlovvf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_kH6XCR1kfOtbkPVD9ROvFQ_HWhDfhUG";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 const TABLE = "inventory_batches";
 
 const sb = {
