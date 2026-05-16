@@ -185,6 +185,10 @@ export default function App() {
   const [fifoSku,setFifoSku]     = useState("");
   const [isOnline,setIsOnline]   = useState(false);
   const [syncing,setSyncing]     = useState(false);
+  const [stRecords,setStRecords] = useState([]);
+  const [stFilter,setStFilter]   = useState("all");
+  const [stOperator,setStOp]     = useState("");
+  const [stPending,setStPending] = useState(null);
 
   const gridRef = useRef(null);
   const editRef = useRef(null);
@@ -295,6 +299,7 @@ export default function App() {
     {id:"grid",     icon:"⊞", lbl:"庫存總表"},
     {id:"fifo",     icon:"⇄", lbl:"FIFO"},
     {id:"bot",      icon:"🤖",lbl:"機器人"},
+    {id:"stocktake",icon:"📋",lbl:"盤點"},
     {id:"import",   icon:"⬆", lbl:"匯入"},
     {id:"line",     icon:"💬",lbl:"LINE"},
     {id:"admin",    icon:"⚙️", lbl:"後台"},
@@ -486,18 +491,8 @@ export default function App() {
               {rows.length===0&&loaded&&<div style={{padding:60,textAlign:"center",color:"#9ca3af",fontSize:14}}>📦 {items.length===0?"尚無資料，請點「＋ 新增批號」或匯入 Excel":"沒有符合條件的批號"}</div>}
             </div>
           </div>
-          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12,alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <span>顯示 {rows.length} / {items.length} 筆</span><span>·</span><span>雙擊儲存格可直接編輯</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
-            </div>
-            <button onClick={()=>{
-              const r=rows.map(b=>({SKU:b.sku,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));
-              const ws=XLSX.utils.json_to_sheet(r);
-              const wb=XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb,ws,"庫存");
-              XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);
-              showToast("匯出完成 ✅");
-            }} style={{background:"#2563eb",border:"none",color:"#fff",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
+          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12}}>
+            <span>顯示 {rows.length} / {items.length} 筆</span><span>·</span><span>雙擊儲存格可直接編輯</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
           </div>
         </div>
       )}
@@ -559,6 +554,194 @@ export default function App() {
               </div>
             ))}
             {botLog.length===0&&<div style={{color:"#9ca3af",fontSize:13}}>尚無掃描記錄</div>}
+          </div>
+        </div>
+      )}
+
+
+      {/* ══ STOCKTAKE 盤點 ══ */}
+      {tab==="stocktake"&&(
+        <div style={{flex:1,overflow:"auto",padding:20}} className="fade">
+          <div style={{maxWidth:800}}>
+            <div style={aH1}>📋 庫存盤點</div>
+
+            {/* 步驟一：匯出盤點表 */}
+            <div style={aBox}>
+              <div style={aH2}>① 匯出盤點表</div>
+              <div style={{color:"#6b7280",fontSize:13,marginBottom:12}}>匯出 Excel 盤點表，請盤點人員在「實際數量」欄填入清點結果後，再匯入系統。</div>
+              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                <select value={stFilter} onChange={e=>setStFilter(e.target.value)} style={{...fldSt,width:"auto"}}>
+                  <option value="all">全部類別</option>
+                  {CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+                <button onClick={()=>{
+                  const filtered=stFilter==="all"?items:items.filter(b=>b.category===stFilter);
+                  const r=filtered.map(b=>({
+                    SKU:b.sku,商品名稱:b.name,批號:b.batch_no,類別:b.category||"",
+                    有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",
+                    帳面數量:b.qty,實際數量:"",單位:b.unit||"",儲位:b.location||"",備註:""
+                  }));
+                  const ws=XLSX.utils.json_to_sheet(r);
+                  ws["!cols"]=[{wch:10},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:10},{wch:8},{wch:10},{wch:14}];
+                  const wb=XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb,ws,"盤點表");
+                  XLSX.writeFile(wb,`stocktake_${new Date().toISOString().slice(0,10)}.xlsx`);
+                  showToast("✅ 盤點表已匯出");
+                }} style={{background:"#2563eb",border:"none",color:"#fff",padding:"8px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>⬇ 匯出盤點表</button>
+              </div>
+            </div>
+
+            {/* 步驟二：匯入盤點結果 */}
+            <div style={aBox}>
+              <div style={aH2}>② 匯入盤點結果</div>
+              <div style={{color:"#6b7280",fontSize:13,marginBottom:12}}>盤點人員填寫完成後，請匯入已填好的 Excel 檔案。</div>
+              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+                <input placeholder="盤點人員姓名" value={stOperator} onChange={e=>setStOp(e.target.value)} style={{...fldSt,width:160}}/>
+                <button onClick={()=>document.getElementById("stFileInput").click()} style={{background:"#16a34a",border:"none",color:"#fff",padding:"8px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>⬆ 匯入盤點結果</button>
+                <input id="stFileInput" type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={async e=>{
+                  const file=e.target.files[0]; if(!file)return;
+                  try{
+                    const buf=await file.arrayBuffer();
+                    const wb=XLSX.read(buf,{type:"array",cellDates:true});
+                    const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+                    const diffs=[];
+                    raw.forEach(row=>{
+                      const batchNo=String(row["批號"]||"").trim();
+                      const actualQty=row["實際數量"];
+                      if(!batchNo||actualQty===""||actualQty===null)return;
+                      const found=items.find(b=>String(b.batch_no||"").trim()===batchNo);
+                      if(!found)return;
+                      const actual=Number(actualQty)||0;
+                      const diff=actual-found.qty;
+                      diffs.push({id:found.id,sku:found.sku,name:found.name,batch_no:batchNo,
+                        category:found.category,expiry_date:found.expiry_date,
+                        bookQty:found.qty,actualQty:actual,diff,unit:found.unit||""});
+                    });
+                    setStPending({diffs,operator:stOperator||"未填寫",date:new Date().toLocaleString("zh-TW"),file:file.name});
+                    e.target.value="";
+                    showToast(`✅ 讀取完成，共 ${diffs.length} 筆差異待確認`);
+                  }catch(err){showToast("匯入失敗："+err.message,"error");}
+                }}/>
+              </div>
+            </div>
+
+            {/* 步驟三：差異確認 */}
+            {stPending&&(
+              <div style={aBox}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <div style={aH2}>③ 差異確認 — {stPending.operator} · {stPending.date}</div>
+                  <button onClick={()=>setStPending(null)} style={{background:"none",border:"none",color:"#9ca3af",cursor:"pointer",fontSize:18}}>✕</button>
+                </div>
+                <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+                  {[
+                    {lbl:"盤盈",count:stPending.diffs.filter(d=>d.diff>0).length,col:"#16a34a",bg:"#f0fdf4"},
+                    {lbl:"盤虧",count:stPending.diffs.filter(d=>d.diff<0).length,col:"#dc2626",bg:"#fef2f2"},
+                    {lbl:"相符",count:stPending.diffs.filter(d=>d.diff===0).length,col:"#2563eb",bg:"#eff6ff"},
+                  ].map(s=><div key={s.lbl} style={{background:s.bg,border:`1px solid ${s.col}22`,borderRadius:8,padding:"10px 18px",textAlign:"center"}}>
+                    <div style={{color:s.col,fontSize:20,fontWeight:700}}>{s.count}</div>
+                    <div style={{color:s.col,fontSize:11,fontWeight:600}}>{s.lbl}</div>
+                  </div>)}
+                </div>
+                <div style={{overflowX:"auto",marginBottom:14}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                    <thead>
+                      <tr style={{background:"#f8fafc"}}>
+                        {["SKU","商品名稱","批號","帳面數量","實際數量","差異","單位","狀態"].map(h=>
+                          <th key={h} style={{padding:"8px 10px",borderBottom:"1px solid #e5e7eb",textAlign:"left",color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stPending.diffs.map((d,i)=>(
+                        <tr key={i} style={{borderBottom:"1px solid #f1f5f9",background:d.diff>0?"#f0fdf4":d.diff<0?"#fef2f2":"#fff"}}>
+                          <td style={{padding:"7px 10px",color:"#374151"}}>{d.sku}</td>
+                          <td style={{padding:"7px 10px",color:"#374151"}}>{d.name}</td>
+                          <td style={{padding:"7px 10px",color:"#374151"}}>{d.batch_no}</td>
+                          <td style={{padding:"7px 10px",textAlign:"right"}}>{d.bookQty}</td>
+                          <td style={{padding:"7px 10px",textAlign:"right"}}>{d.actualQty}</td>
+                          <td style={{padding:"7px 10px",textAlign:"right",fontWeight:700,color:d.diff>0?"#16a34a":d.diff<0?"#dc2626":"#6b7280"}}>{d.diff>0?"+":""}{d.diff}</td>
+                          <td style={{padding:"7px 10px",color:"#6b7280"}}>{d.unit}</td>
+                          <td style={{padding:"7px 10px"}}><span style={{background:d.diff>0?"#dcfce7":d.diff<0?"#fee2e2":"#f1f5f9",color:d.diff>0?"#16a34a":d.diff<0?"#dc2626":"#6b7280",padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:600}}>{d.diff>0?"盤盈":d.diff<0?"盤虧":"相符"}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={()=>setStPending(null)} style={{flex:1,padding:"9px",background:"#f9fafb",border:"1px solid #e5e7eb",color:"#4b5563",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500}}>取消</button>
+                  <button onClick={async()=>{
+                    for(const d of stPending.diffs){
+                      if(d.diff===0)continue;
+                      const orig=items.find(b=>b.id===d.id);
+                      if(orig)await saveItem({...orig,qty:d.actualQty});
+                    }
+                    const rec={id:genId(),date:stPending.date,operator:stPending.operator,file:stPending.file,
+                      total:stPending.diffs.length,
+                      gain:stPending.diffs.filter(d=>d.diff>0).length,
+                      loss:stPending.diffs.filter(d=>d.diff<0).length,
+                      match:stPending.diffs.filter(d=>d.diff===0).length,
+                      diffs:stPending.diffs};
+                    setStRecords(prev=>[rec,...prev]);
+                    setStPending(null);
+                    showToast("✅ 庫存已更新");
+                  }} style={{flex:2,padding:"9px",background:"#16a34a",border:"none",color:"#fff",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700}}>✅ 確認並更新庫存</button>
+                </div>
+              </div>
+            )}
+
+            {/* 盤點歷史紀錄 */}
+            <div style={aBox}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={aH2}>📜 歷史盤點紀錄</div>
+              </div>
+              {stRecords.length===0&&<div style={{color:"#9ca3af",fontSize:13,textAlign:"center",padding:20}}>尚無盤點紀錄</div>}
+              {stRecords.map((rec,i)=>(
+                <div key={rec.id} style={{border:"1px solid #e5e7eb",borderRadius:8,padding:14,marginBottom:10,background:"#fafafa"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13,color:"#111827",marginBottom:4}}>🗓 {rec.date}　👤 {rec.operator}</div>
+                      <div style={{fontSize:12,color:"#6b7280"}}>檔案：{rec.file}　共 {rec.total} 筆</div>
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{background:"#f0fdf4",color:"#16a34a",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>盈 {rec.gain}</span>
+                      <span style={{background:"#fef2f2",color:"#dc2626",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>虧 {rec.loss}</span>
+                      <span style={{background:"#eff6ff",color:"#2563eb",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>符 {rec.match}</span>
+                      <button onClick={()=>{
+                        const printWin=window.open("","_blank","width=900,height=700");
+                        const rows=rec.diffs.map(d=>`<tr style="background:${d.diff>0?"#f0fdf4":d.diff<0?"#fef2f2":"#fff"}">
+                          <td>${d.sku}</td><td>${d.name}</td><td>${d.batch_no}</td>
+                          <td style="text-align:right">${d.bookQty}</td>
+                          <td style="text-align:right">${d.actualQty}</td>
+                          <td style="text-align:right;font-weight:700;color:${d.diff>0?"#16a34a":d.diff<0?"#dc2626":"#6b7280"}">${d.diff>0?"+":""}${d.diff}</td>
+                          <td>${d.unit}</td>
+                          <td>${d.diff>0?"盤盈":d.diff<0?"盤虧":"相符"}</td>
+                        </tr>`).join("");
+                        printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>盤點報告</title>
+                        <style>body{font-family:Arial,sans-serif;padding:24px;font-size:13px;}h2{margin-bottom:4px;}p{color:#6b7280;margin-bottom:16px;}
+                        table{width:100%;border-collapse:collapse;}th,td{border:1px solid #e5e7eb;padding:7px 10px;text-align:left;}
+                        th{background:#f8fafc;font-weight:600;}@media print{button{display:none}}</style></head><body>
+                        <h2>📋 庫存盤點報告</h2>
+                        <p>盤點日期：${rec.date}　盤點人員：${rec.operator}　檔案：${rec.file}</p>
+                        <p>盤盈：${rec.gain} 筆　盤虧：${rec.loss} 筆　相符：${rec.match} 筆　合計：${rec.total} 筆</p>
+                        <table><thead><tr><th>SKU</th><th>商品名稱</th><th>批號</th><th>帳面數量</th><th>實際數量</th><th>差異</th><th>單位</th><th>狀態</th></tr></thead>
+                        <tbody>${rows}</tbody></table>
+                        <br><button onclick="window.print()">🖨 列印</button>
+                        </body></html>`);
+                        printWin.document.close();
+                      }} style={{background:"#f3f4f6",border:"1px solid #d1d5db",color:"#374151",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600}}>🖨 列印</button>
+                      <button onClick={()=>{
+                        const r=rec.diffs.map(d=>({SKU:d.sku,商品名稱:d.name,批號:d.batch_no,帳面數量:d.bookQty,實際數量:d.actualQty,差異:d.diff,單位:d.unit,狀態:d.diff>0?"盤盈":d.diff<0?"盤虧":"相符"}));
+                        const ws=XLSX.utils.json_to_sheet(r);
+                        const wb=XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb,ws,"盤點結果");
+                        XLSX.writeFile(wb,`stocktake_result_${rec.date.slice(0,10)}.xlsx`);
+                        showToast("✅ 匯出完成");
+                      }} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600}}>⬇ 匯出</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
