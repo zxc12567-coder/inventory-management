@@ -73,7 +73,7 @@ const TIER = {
   none:   { label:"無效期",    color:"#9ca3af", bg:"#f9fafb", border:"#e5e7eb" },
 };
 
-function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function genId() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
 function fmtMoney(n) { return n?`$${Number(n).toLocaleString()}`:"—"; }
 function fmtDate(d) { return d?d.slice(0,10):""; }
 function newBatch(o={}) { return { id:genId(),barcode:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
