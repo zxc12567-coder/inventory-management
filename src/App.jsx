@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import * as XLSX from "xlsx";
 
 const SUPABASE_URL = "https://rmokkujpnptiugqlovvf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_kH6XCR1kfOtbkPVD9ROvFQ_HWhDfhUG";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtb2trdWpwbnB0aXVncWxvdnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MjkzNzQsImV4cCI6MjA5NDUwNTM3NH0.4CIPkHwqTn37hnXryIN_ebJKAZ9P1Oc6JyzEnHzo1vA";
 const TABLE = "inventory_batches";
 
 const sb = {
