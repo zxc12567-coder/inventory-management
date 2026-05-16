@@ -193,7 +193,7 @@ export default function App() {
   useEffect(()=>{
     (async()=>{
       let data=[];
-      if(SUPABASE_URL){ setSyncing(true); const {data:d,error}=await sb.select(TABLE); if(!error){data=d||[];setIsOnline(true);}else data=await idbAll(); setSyncing(false); }
+      if(SUPABASE_URL){ setSyncing(true); const {data:d,error}=await sb.select(TABLE); if(!error){data=d?.length?d:data;setIsOnline(true);}else data=await idbAll(); setSyncing(false); }
     
       setItems(data); setLoaded(true);
     })();
@@ -486,8 +486,18 @@ export default function App() {
               {rows.length===0&&loaded&&<div style={{padding:60,textAlign:"center",color:"#9ca3af",fontSize:14}}>📦 {items.length===0?"尚無資料，請點「＋ 新增批號」或匯入 Excel":"沒有符合條件的批號"}</div>}
             </div>
           </div>
-          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12}}>
-            <span>顯示 {rows.length} / {items.length} 筆</span><span>·</span><span>雙擊儲存格可直接編輯</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
+          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12,alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <span>顯示 {rows.length} / {items.length} 筆</span><span>·</span><span>雙擊儲存格可直接編輯</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
+            </div>
+            <button onClick={()=>{
+              const r=rows.map(b=>({SKU:b.sku,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));
+              const ws=XLSX.utils.json_to_sheet(r);
+              const wb=XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb,ws,"庫存");
+              XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);
+              showToast("匯出完成 ✅");
+            }} style={{background:"#2563eb",border:"none",color:"#fff",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
           </div>
         </div>
       )}
