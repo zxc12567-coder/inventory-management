@@ -193,7 +193,7 @@ export default function App() {
   useEffect(()=>{
     (async()=>{
       let data=[];
-      if(SUPABASE_URL){ setSyncing(true); const {data:d,error}=await sb.select(TABLE); if(!error){data=d?.length?d:data;setIsOnline(true);}else data=await idbAll(); setSyncing(false); }
+      if(SUPABASE_URL){ setSyncing(true); const {data:d,error}=await sb.select(TABLE); if(!error){data=d;setIsOnline(true);}else data=await idbAll(); setSyncing(false); }
     
       setItems(data); setLoaded(true);
     })();
