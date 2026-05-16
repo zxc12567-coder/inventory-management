@@ -70,7 +70,7 @@ const TIER = {
 function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function fmtMoney(n) { return n?`$${Number(n).toLocaleString()}`:"—"; }
 function fmtDate(d) { return d?d.slice(0,10):""; }
-function newBatch(o={}) { return { id:genId(),sku:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
+function newBatch(o={}) { return { id:genId(),barcode:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
 function toSB(r) { return {...r, expiry_date:r.expiry_date||null, qty:Number(r.qty)||0, cost:Number(r.cost)||0, price:Number(r.price)||0 }; }
 
 function buildChart(items) {
@@ -92,7 +92,7 @@ function useVScroll(n, ref) {
 }
 
 const COLS=[
-  {k:"sku",        lbl:"SKU",      w:110,ed:true},
+  {k:"barcode",    lbl:"條碼",     w:120,ed:true},
   {k:"name",       lbl:"商品名稱", w:170,ed:true},
   {k:"batch_no",   lbl:"批號",     w:110,ed:true},
   {k:"category",   lbl:"類別",     w:85, ed:true,type:"sel"},
@@ -119,7 +119,7 @@ const cpyBtn = { background:"#f3f4f6", border:"1px solid #d1d5db", color:"#37415
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS inventory_batches (",
   "  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
-  "  sku          TEXT,",
+  "  barcode       TEXT,",
   "  name         TEXT NOT NULL,",
   "  batch_no     TEXT,",
   "  category     TEXT DEFAULT '食品',",
@@ -134,7 +134,7 @@ const SCHEMA = [
   "  created_at   TIMESTAMPTZ DEFAULT NOW()",
   ");",
   "CREATE INDEX IF NOT EXISTS idx_exp ON inventory_batches(expiry_date);",
-  "CREATE INDEX IF NOT EXISTS idx_sku ON inventory_batches(sku);",
+  "CREATE INDEX IF NOT EXISTS idx_barcode ON inventory_batches(barcode);",
   "ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY;",
   "CREATE POLICY allow_all ON inventory_batches FOR ALL USING (true) WITH CHECK (true);",
 ].join("\n");
@@ -186,7 +186,7 @@ export default function App() {
   const [isOnline,setIsOnline]   = useState(false);
   const [syncing,setSyncing]     = useState(false);
   const [stRecords,setStRecords] = useState([]);
-  const [stFilter,setStFilter]   = useState("all");
+  const [stBarcodes,setStBarcodes] = useState("");
   const [stOperator,setStOp]     = useState("");
   const [stPending,setStPending] = useState(null);
 
@@ -224,7 +224,7 @@ export default function App() {
 
   const rows=useMemo(()=>{
     let r=items.map(b=>({...b,_days:daysLeft(b.expiry_date),_tier:tierOf(daysLeft(b.expiry_date))}));
-    if(search){const q=search.toLowerCase();r=r.filter(x=>x.name?.toLowerCase().includes(q)||x.sku?.toLowerCase().includes(q)||x.batch_no?.toLowerCase().includes(q)||x.supplier?.toLowerCase().includes(q));}
+    if(search){const q=search.toLowerCase();r=r.filter(x=>x.name?.toLowerCase().includes(q)||x.barcode?.toLowerCase().includes(q)||x.batch_no?.toLowerCase().includes(q)||x.supplier?.toLowerCase().includes(q));}
     if(filterTier!=="all")r=r.filter(x=>x._tier===filterTier);
     if(filterCat!=="all")r=r.filter(x=>x.category===filterCat);
     r.sort((a,b)=>{ let av=a[sortK]??"",bv=b[sortK]??""; if(sortK==="_days"){av=a._days??9999;bv=b._days??9999;} return(typeof av==="number"?av-bv:String(av).localeCompare(String(bv),"zh"))*sortD; });
@@ -246,7 +246,7 @@ export default function App() {
   async function commitEdit(){ if(!editCell)return;const b=items.find(x=>x.id===editCell.id);if(!b){setEditCell(null);return;}const col=COLS.find(c=>c.k===editCell.k);let val=editVal;if(col?.type==="num")val=parseFloat(val)||0;await saveItem({...b,[editCell.k]:val});setEditCell(null); }
   function toggleSort(k){ if(sortK===k)setSortD(d=>-d);else{setSortK(k);setSortD(1);} }
 
-  const fifoRows=useMemo(()=>{ if(!fifoSku.trim())return[];return items.filter(b=>b.sku===fifoSku.trim()&&b.qty>0).sort((a,b)=>new Date(a.expiry_date)-new Date(b.expiry_date)); },[items,fifoSku]);
+  const fifoRows=useMemo(()=>{ if(!fifoSku.trim())return[];return items.filter(b=>b.barcode===fifoSku.trim()&&b.qty>0).sort((a,b)=>new Date(a.expiry_date)-new Date(b.expiry_date)); },[items,fifoSku]);
 
   async function runBot(data,notify=true){
     const today=new Date().toLocaleDateString("zh-TW");const alerts=[];
@@ -275,12 +275,12 @@ export default function App() {
       try{
         const wb=XLSX.read(ev.target.result,{type:"binary",cellDates:true});
         const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
-        const MAP={"SKU":"sku","sku":"sku","條碼":"sku","商品名稱":"name","name":"name","批號":"batch_no","有效日期":"expiry_date","到期日":"expiry_date","類別":"category","庫存量":"qty","qty":"qty","數量":"qty","單位":"unit","成本":"cost","成本價":"cost","售價":"price","儲位":"location","供應商":"supplier","備註":"note"};
+        const MAP={"SKU":"barcode","sku":"barcode","barcode":"barcode","條碼":"barcode","商品名稱":"name","name":"name","批號":"batch_no","有效日期":"expiry_date","到期日":"expiry_date","類別":"category","庫存量":"qty","qty":"qty","數量":"qty","單位":"unit","成本":"cost","成本價":"cost","售價":"price","儲位":"location","供應商":"supplier","備註":"note"};
         let ok=0;
         for(const row of raw){
           const b=newBatch();
           Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){b[mk]=v instanceof Date?v.toISOString().slice(0,10):typeof v==="string"&&v?new Date(v).toISOString().slice(0,10):"";}else b[mk]=v; });
-          if(!b.name&&!b.sku)continue;await saveItem(b);ok++;
+          if(!b.name&&!b.barcode)continue;await saveItem(b);ok++;
         }
         setImportLog({ok,total:raw.length,file:file.name});showToast(`✅ 匯入 ${ok} 筆`);
       }catch(err){showToast("匯入失敗："+err.message,"error");}
@@ -288,7 +288,7 @@ export default function App() {
     reader.readAsBinaryString(file);e.target.value="";
   }
 
-  function downloadTemplate(){ const ws=XLSX.utils.aoa_to_sheet([["SKU","商品名稱","批號","有效日期","類別","庫存量","單位","成本價","售價","儲位","供應商","備註"],["A001","示範商品","LOT001","2026-06-30","食品",100,"個",50,120,"A-01","供應商甲","範例"]]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,"inventory_template.xlsx"); }
+  function downloadTemplate(){ const ws=XLSX.utils.aoa_to_sheet([["條碼","商品名稱","批號","有效日期","類別","庫存量","單位","成本價","售價","儲位","供應商","備註"],["4710000000001","示範商品","LOT001","2026-06-30","食品",100,"個",50,120,"A-01","供應商甲","範例"]]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,"inventory_template.xlsx"); }
 
   function startResize(k,e){ e.preventDefault();const sx=e.clientX,sw=colW[k];const mv=ev=>setColW(p=>({...p,[k]:Math.max(50,sw+ev.clientX-sx)}));const up=()=>{window.removeEventListener("mousemove",mv);window.removeEventListener("mouseup",up);};window.addEventListener("mousemove",mv);window.addEventListener("mouseup",up); }
 
@@ -372,7 +372,7 @@ export default function App() {
         </div>
         <div style={{flex:1}}/>
         <div style={{display:"flex",gap:8,alignItems:"center",padding:"0 8px"}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 搜尋 SKU / 商品 / 批號" style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 12px",borderRadius:7,fontSize:12,width:200,fontFamily:"inherit"}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 搜尋條碼 / 商品 / 批號" style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 12px",borderRadius:7,fontSize:12,width:200,fontFamily:"inherit"}}/>
           <select value={filterCat} onChange={e=>setFC(e.target.value)} style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 10px",borderRadius:7,fontSize:12,fontFamily:"inherit"}}>
             <option value="all">所有類別</option>{CATS.map(c=><option key={c}>{c}</option>)}
           </select>
@@ -468,7 +468,7 @@ export default function App() {
                           if(col.k==="_tier")disp=tm.label;
                           return (
                             <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",cursor:col.ed?"cell":"default",fontSize:12,
-                              color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="sku"?"#2563eb":"#4b5563",
+                              color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="barcode"?"#2563eb":"#4b5563",
                               background:isEd?"#eff6ff":"transparent",outline:isEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
                               onDoubleClick={()=>col.ed&&startEdit(row.id,col.k,row[col.k])}>
                               {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{CATS.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
@@ -504,8 +504,8 @@ export default function App() {
             <div style={aH1}>⇄ FIFO 先進先出出貨查詢</div>
             <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>依到期日由近到遠排序，第 1 批為建議優先出貨批次。</div>
             <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-              <input value={fifoSku} onChange={e=>setFifoSku(e.target.value)} placeholder="輸入 SKU 查詢…" style={{flex:1,minWidth:140,...fldSt}}/>
-              {[...new Set(items.map(b=>b.sku).filter(Boolean))].slice(0,10).map(s=>(<button key={s} onClick={()=>setFifoSku(s)} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"5px 12px",borderRadius:5,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>{s}</button>))}
+              <input value={fifoSku} onChange={e=>setFifoSku(e.target.value)} placeholder="輸入條碼查詢…" style={{flex:1,minWidth:140,...fldSt}}/>
+              {[...new Set(items.map(b=>b.barcode).filter(Boolean))].slice(0,10).map(s=>(<button key={s} onClick={()=>setFifoSku(s)} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"5px 12px",borderRadius:5,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>{s}</button>))}
             </div>
             {fifoRows.length>0?fifoRows.map((b,i)=>{ const d=daysLeft(b.expiry_date);const tm=TIER[tierOf(d)];return (
               <div key={b.id} style={{...aBox,display:"flex",alignItems:"center",gap:12,borderColor:i===0?"#bfdbfe":"#e5e7eb",background:i===0?"#eff6ff":"#fff"}}>
@@ -520,7 +520,7 @@ export default function App() {
                 </div>
                 {i===0&&<div style={{background:"#2563eb",color:"#fff",padding:"4px 10px",borderRadius:5,fontSize:11,fontWeight:600,flexShrink:0}}>出貨優先</div>}
               </div>
-            );}):fifoSku.trim()?<div style={{color:"#9ca3af",fontSize:13}}>找不到 SKU「{fifoSku}」的批號</div>:<div style={{color:"#9ca3af",fontSize:13}}>請輸入 SKU 開始查詢</div>}
+            );}):fifoSku.trim()?<div style={{color:"#9ca3af",fontSize:13}}>找不到條碼「{fifoSku}」的批號</div>:<div style={{color:"#9ca3af",fontSize:13}}>請輸入條碼開始查詢</div>}
           </div>
         </div>
       )}
@@ -565,37 +565,45 @@ export default function App() {
           <div style={{maxWidth:800}}>
             <div style={aH1}>📋 庫存盤點</div>
 
-            {/* 步驟一：匯出盤點表 */}
+            {/* 步驟一：輸入條碼並匯出盤點表 */}
             <div style={aBox}>
-              <div style={aH2}>① 匯出盤點表</div>
-              <div style={{color:"#6b7280",fontSize:13,marginBottom:12}}>匯出 Excel 盤點表，請盤點人員在「實際數量」欄填入清點結果後，再匯入系統。</div>
+              <div style={aH2}>① 選擇盤點商品並匯出盤點表</div>
+              <div style={{color:"#6b7280",fontSize:13,marginBottom:10}}>輸入國際條碼（每行一個，可一次輸入多個），留空則匯出全部商品。</div>
+              <textarea
+                value={stBarcodes}
+                onChange={e=>setStBarcodes(e.target.value)}
+                placeholder={"4710000000001\n4710000000002\n4710000000003"}
+                rows={4}
+                style={{...fldSt,marginBottom:10,fontFamily:"monospace",fontSize:13}}
+              />
               <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                <select value={stFilter} onChange={e=>setStFilter(e.target.value)} style={{...fldSt,width:"auto"}}>
-                  <option value="all">全部類別</option>
-                  {CATS.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
                 <button onClick={()=>{
-                  const filtered=stFilter==="all"?items:items.filter(b=>b.category===stFilter);
+                  const barcodeList=stBarcodes.trim().split("\n").map(s=>s.trim()).filter(Boolean);
+                  const filtered=barcodeList.length>0
+                    ?items.filter(b=>barcodeList.includes(String(b.barcode||"").trim()))
+                    :items;
+                  if(filtered.length===0){showToast("找不到符合條碼的商品","error");return;}
                   const r=filtered.map(b=>({
-                    SKU:b.sku,商品名稱:b.name,批號:b.batch_no,類別:b.category||"",
+                    條碼:b.barcode||"",商品名稱:b.name,批號:b.batch_no,類別:b.category||"",
                     有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",
                     帳面數量:b.qty,實際數量:"",單位:b.unit||"",儲位:b.location||"",備註:""
                   }));
                   const ws=XLSX.utils.json_to_sheet(r);
-                  ws["!cols"]=[{wch:10},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:10},{wch:8},{wch:10},{wch:14}];
+                  ws["!cols"]=[{wch:14},{wch:16},{wch:12},{wch:10},{wch:12},{wch:10},{wch:10},{wch:8},{wch:10},{wch:14}];
                   const wb=XLSX.utils.book_new();
                   XLSX.utils.book_append_sheet(wb,ws,"盤點表");
                   XLSX.writeFile(wb,`stocktake_${new Date().toISOString().slice(0,10)}.xlsx`);
-                  showToast("✅ 盤點表已匯出");
+                  showToast(`✅ 已匯出 ${filtered.length} 筆盤點表`);
                 }} style={{background:"#2563eb",border:"none",color:"#fff",padding:"8px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>⬇ 匯出盤點表</button>
+                <span style={{color:"#9ca3af",fontSize:12}}>留空 = 匯出全部 {items.length} 筆</span>
               </div>
             </div>
 
             {/* 步驟二：匯入盤點結果 */}
             <div style={aBox}>
               <div style={aH2}>② 匯入盤點結果</div>
-              <div style={{color:"#6b7280",fontSize:13,marginBottom:12}}>盤點人員填寫完成後，請匯入已填好的 Excel 檔案。</div>
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+              <div style={{color:"#6b7280",fontSize:13,marginBottom:10}}>盤點人員填寫完成後，請匯入已填好的 Excel 檔案。</div>
+              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
                 <input placeholder="盤點人員姓名" value={stOperator} onChange={e=>setStOp(e.target.value)} style={{...fldSt,width:160}}/>
                 <button onClick={()=>document.getElementById("stFileInput").click()} style={{background:"#16a34a",border:"none",color:"#fff",padding:"8px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>⬆ 匯入盤點結果</button>
                 <input id="stFileInput" type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={async e=>{
@@ -613,7 +621,7 @@ export default function App() {
                       if(!found)return;
                       const actual=Number(actualQty)||0;
                       const diff=actual-found.qty;
-                      diffs.push({id:found.id,sku:found.sku,name:found.name,batch_no:batchNo,
+                      diffs.push({id:found.id,barcode:found.barcode,name:found.name,batch_no:batchNo,
                         category:found.category,expiry_date:found.expiry_date,
                         bookQty:found.qty,actualQty:actual,diff,unit:found.unit||""});
                     });
@@ -646,7 +654,7 @@ export default function App() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"#f8fafc"}}>
-                        {["SKU","商品名稱","批號","帳面數量","實際數量","差異","單位","狀態"].map(h=>
+                        {["條碼","商品名稱","批號","帳面數量","實際數量","差異","單位","狀態"].map(h=>
                           <th key={h} style={{padding:"8px 10px",borderBottom:"1px solid #e5e7eb",textAlign:"left",color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>
                         )}
                       </tr>
@@ -654,7 +662,7 @@ export default function App() {
                     <tbody>
                       {stPending.diffs.map((d,i)=>(
                         <tr key={i} style={{borderBottom:"1px solid #f1f5f9",background:d.diff>0?"#f0fdf4":d.diff<0?"#fef2f2":"#fff"}}>
-                          <td style={{padding:"7px 10px",color:"#374151"}}>{d.sku}</td>
+                          <td style={{padding:"7px 10px",color:"#2563eb",fontWeight:500}}>{d.barcode||"—"}</td>
                           <td style={{padding:"7px 10px",color:"#374151"}}>{d.name}</td>
                           <td style={{padding:"7px 10px",color:"#374151"}}>{d.batch_no}</td>
                           <td style={{padding:"7px 10px",textAlign:"right"}}>{d.bookQty}</td>
@@ -691,25 +699,23 @@ export default function App() {
 
             {/* 盤點歷史紀錄 */}
             <div style={aBox}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={aH2}>📜 歷史盤點紀錄</div>
-              </div>
+              <div style={aH2}>📜 歷史盤點紀錄</div>
               {stRecords.length===0&&<div style={{color:"#9ca3af",fontSize:13,textAlign:"center",padding:20}}>尚無盤點紀錄</div>}
-              {stRecords.map((rec,i)=>(
+              {stRecords.map((rec)=>(
                 <div key={rec.id} style={{border:"1px solid #e5e7eb",borderRadius:8,padding:14,marginBottom:10,background:"#fafafa"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
                     <div>
                       <div style={{fontWeight:600,fontSize:13,color:"#111827",marginBottom:4}}>🗓 {rec.date}　👤 {rec.operator}</div>
                       <div style={{fontSize:12,color:"#6b7280"}}>檔案：{rec.file}　共 {rec.total} 筆</div>
                     </div>
-                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                       <span style={{background:"#f0fdf4",color:"#16a34a",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>盈 {rec.gain}</span>
                       <span style={{background:"#fef2f2",color:"#dc2626",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>虧 {rec.loss}</span>
                       <span style={{background:"#eff6ff",color:"#2563eb",padding:"2px 10px",borderRadius:12,fontSize:11,fontWeight:600}}>符 {rec.match}</span>
                       <button onClick={()=>{
                         const printWin=window.open("","_blank","width=900,height=700");
                         const rows=rec.diffs.map(d=>`<tr style="background:${d.diff>0?"#f0fdf4":d.diff<0?"#fef2f2":"#fff"}">
-                          <td>${d.sku}</td><td>${d.name}</td><td>${d.batch_no}</td>
+                          <td>${d.barcode||"—"}</td><td>${d.name}</td><td>${d.batch_no}</td>
                           <td style="text-align:right">${d.bookQty}</td>
                           <td style="text-align:right">${d.actualQty}</td>
                           <td style="text-align:right;font-weight:700;color:${d.diff>0?"#16a34a":d.diff<0?"#dc2626":"#6b7280"}">${d.diff>0?"+":""}${d.diff}</td>
@@ -723,14 +729,14 @@ export default function App() {
                         <h2>📋 庫存盤點報告</h2>
                         <p>盤點日期：${rec.date}　盤點人員：${rec.operator}　檔案：${rec.file}</p>
                         <p>盤盈：${rec.gain} 筆　盤虧：${rec.loss} 筆　相符：${rec.match} 筆　合計：${rec.total} 筆</p>
-                        <table><thead><tr><th>SKU</th><th>商品名稱</th><th>批號</th><th>帳面數量</th><th>實際數量</th><th>差異</th><th>單位</th><th>狀態</th></tr></thead>
+                        <table><thead><tr><th>條碼</th><th>商品名稱</th><th>批號</th><th>帳面數量</th><th>實際數量</th><th>差異</th><th>單位</th><th>狀態</th></tr></thead>
                         <tbody>${rows}</tbody></table>
                         <br><button onclick="window.print()">🖨 列印</button>
                         </body></html>`);
                         printWin.document.close();
                       }} style={{background:"#f3f4f6",border:"1px solid #d1d5db",color:"#374151",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600}}>🖨 列印</button>
                       <button onClick={()=>{
-                        const r=rec.diffs.map(d=>({SKU:d.sku,商品名稱:d.name,批號:d.batch_no,帳面數量:d.bookQty,實際數量:d.actualQty,差異:d.diff,單位:d.unit,狀態:d.diff>0?"盤盈":d.diff<0?"盤虧":"相符"}));
+                        const r=rec.diffs.map(d=>({條碼:d.barcode||"",商品名稱:d.name,批號:d.batch_no,帳面數量:d.bookQty,實際數量:d.actualQty,差異:d.diff,單位:d.unit,狀態:d.diff>0?"盤盈":d.diff<0?"盤虧":"相符"}));
                         const ws=XLSX.utils.json_to_sheet(r);
                         const wb=XLSX.utils.book_new();
                         XLSX.utils.book_append_sheet(wb,ws,"盤點結果");
@@ -754,7 +760,7 @@ export default function App() {
             <div style={aBox}>
               <div style={aH2}>步驟 1 — 下載範本</div>
               <button onClick={downloadTemplate} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"9px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>📥 下載 Excel 範本</button>
-              <div style={{color:"#9ca3af",fontSize:12,marginTop:8}}>欄位：SKU、商品名稱、批號、有效日期、類別、庫存量、單位、成本價、售價、儲位、供應商、備註</div>
+              <div style={{color:"#9ca3af",fontSize:12,marginTop:8}}>欄位：條碼、商品名稱、批號、有效日期、類別、庫存量、單位、成本價、售價、儲位、供應商、備註</div>
             </div>
             <div style={{...aBox,border:"2px dashed #d1d5db",textAlign:"center",cursor:"pointer",padding:32}} onClick={()=>fileRef.current?.click()}>
               <div style={{fontSize:36,marginBottom:8}}>📂</div>
@@ -855,7 +861,7 @@ export default function App() {
                   <pre style={{...codeS,maxHeight:340,overflow:"auto"}}>{SCHEMA}</pre>
                 </div>
                 <div style={aBox}><div style={aH2}>欄位說明</div>
-                  {[["id","UUID","主鍵，自動產生"],["sku","TEXT","商品條碼"],["name","TEXT","商品名稱（必填）"],["batch_no","TEXT","批號，FIFO追蹤用"],["expiry_date","DATE","有效日期"],["qty","INTEGER","庫存數量"],["cost","NUMERIC","成本價"],["price","NUMERIC","售價"],["location","TEXT","儲位"],["created_at","TIMESTAMPTZ","建立時間（自動）"]].map(([c,t,d])=>(
+                  {[["id","UUID","主鍵，自動產生"],["barcode","TEXT","國際條碼"],["name","TEXT","商品名稱（必填）"],["batch_no","TEXT","批號，FIFO追蹤用"],["expiry_date","DATE","有效日期"],["qty","INTEGER","庫存數量"],["cost","NUMERIC","成本價"],["price","NUMERIC","售價"],["location","TEXT","儲位"],["created_at","TIMESTAMPTZ","建立時間（自動）"]].map(([c,t,d])=>(
                     <div key={c} style={{display:"flex",gap:12,padding:"6px 0",borderBottom:"1px solid #f3f4f6",fontSize:12}}>
                       <span style={{color:"#2563eb",width:110,flexShrink:0,fontWeight:600}}>{c}</span>
                       <span style={{color:"#16a34a",width:80,flexShrink:0}}>{t}</span>
@@ -873,12 +879,12 @@ export default function App() {
                 <div style={{...aBox,padding:0,overflow:"hidden"}}>
                   <div style={{overflowX:"auto"}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                      <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>{["id","sku","商品名稱","批號","有效日期","庫存","成本","狀態"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",color:"#6b7280",fontWeight:600,fontSize:11,letterSpacing:0.5,textTransform:"uppercase",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+                      <thead><tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>{["id","barcode","商品名稱","批號","有效日期","庫存","成本","狀態"].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",color:"#6b7280",fontWeight:600,fontSize:11,letterSpacing:0.5,textTransform:"uppercase",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
                       <tbody>
                         {items.slice(0,60).map((b,i)=>{ const t=tierOf(daysLeft(b.expiry_date)); return (
                           <tr key={b.id} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa"}}>
                             <td style={{padding:"8px 12px",color:"#9ca3af",fontFamily:"monospace",fontSize:11}}>{b.id.slice(0,8)}…</td>
-                            <td style={{padding:"8px 12px",color:"#2563eb",fontWeight:500}}>{b.sku||"—"}</td>
+                            <td style={{padding:"8px 12px",color:"#2563eb",fontWeight:500}}>{b.barcode||"—"}</td>
                             <td style={{padding:"8px 12px",color:"#111827",fontWeight:500,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</td>
                             <td style={{padding:"8px 12px",color:"#6b7280"}}>{b.batch_no||"—"}</td>
                             <td style={{padding:"8px 12px",color:"#6b7280",whiteSpace:"nowrap"}}>{fmtDate(b.expiry_date)||"—"}</td>
@@ -900,8 +906,8 @@ export default function App() {
               <div style={{maxWidth:580}}>
                 <div style={aH1}>⬇️ 資料匯出</div>
                 {[
-                  {lbl:"全部庫存 Excel",desc:"所有批號完整資料",act:()=>{ const r=items.map(b=>({SKU:b.sku,商品名稱:b.name,批號:b.batch_no,有效日期:fmtDate(b.expiry_date),類別:b.category,庫存量:b.qty,單位:b.unit,成本:b.cost,售價:b.price,儲位:b.location,供應商:b.supplier,備註:b.note,狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅"); }},
-                  {lbl:"即期警示清單",desc:"只匯出 90 天內到期批號",act:()=>{ const r=items.filter(b=>{const d=daysLeft(b.expiry_date);return d!==null&&d<90;}).map(b=>({SKU:b.sku,商品名稱:b.name,批號:b.batch_no,有效日期:fmtDate(b.expiry_date),剩餘天數:daysLeft(b.expiry_date),狀態:TIER[tierOf(daysLeft(b.expiry_date))].label,庫存量:b.qty,風險金額:(b.qty||0)*(b.cost||0)}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"即期清單");XLSX.writeFile(wb,`expiry_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅"); }},
+                  {lbl:"全部庫存 Excel",desc:"所有批號完整資料",act:()=>{ const r=items.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:fmtDate(b.expiry_date),類別:b.category,庫存量:b.qty,單位:b.unit,成本:b.cost,售價:b.price,儲位:b.location,供應商:b.supplier,備註:b.note,狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅"); }},
+                  {lbl:"即期警示清單",desc:"只匯出 90 天內到期批號",act:()=>{ const r=items.filter(b=>{const d=daysLeft(b.expiry_date);return d!==null&&d<90;}).map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:fmtDate(b.expiry_date),剩餘天數:daysLeft(b.expiry_date),狀態:TIER[tierOf(daysLeft(b.expiry_date))].label,庫存量:b.qty,風險金額:(b.qty||0)*(b.cost||0)}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"即期清單");XLSX.writeFile(wb,`expiry_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅"); }},
                   {lbl:"JSON 備份",desc:"完整原始資料，可用於還原",act:()=>{ const blob=new Blob([JSON.stringify(items,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`backup_${new Date().toISOString().slice(0,10)}.json`;a.click();showToast("備份完成 ✅"); }},
                 ].map((btn,i)=>(
                   <div key={i} style={{...aBox,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -954,7 +960,7 @@ export default function App() {
           <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:24,width:"100%",maxWidth:540,maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
             <div style={{fontSize:16,fontWeight:700,color:"#111827",marginBottom:16}}>＋ 新增批號入庫</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{k:"sku",l:"SKU / 條碼"},{k:"name",l:"商品名稱 *"},{k:"batch_no",l:"批號"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
+              {[{k:"barcode",l:"國際條碼"},{k:"name",l:"商品名稱 *"},{k:"batch_no",l:"批號"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
                 <div key={f.k}>
                   <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:4,fontWeight:500}}>{f.l}</label>
                   {f.t==="sel"?<select value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}>{CATS.map(c=><option key={c}>{c}</option>)}</select>:<input type={f.t||"text"} value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}/>}
