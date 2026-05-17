@@ -197,6 +197,8 @@ export default function App() {
   const [lineToken,setLineToken] = useState("");
   const [lineMsg,setLineMsg]     = useState("");
   const [importLog,setImportLog] = useState(null);
+  const [importing,setImporting] = useState(false);
+  const [importProgress,setImportProgress] = useState({current:0,total:0});
   const [fifoSku,setFifoSku]     = useState("");
   const [isOnline,setIsOnline]   = useState(false);
   const [syncing,setSyncing]     = useState(false);
@@ -297,12 +299,21 @@ export default function App() {
         const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
         const MAP={"SKU":"barcode","sku":"barcode","barcode":"barcode","條碼":"barcode","產品編號":"product_no","product_no":"product_no","商品名稱":"name","name":"name","批號":"batch_no","有效日期":"expiry_date","到期日":"expiry_date","類別":"category","庫存量":"qty","qty":"qty","數量":"qty","單位":"unit","成本":"cost","成本價":"cost","售價":"price","儲位":"location","供應商":"supplier","備註":"note"};
         let ok=0,updated=0;
+        setImporting(true);
+        setImportProgress({current:0,total:raw.length});
         for(const row of raw){
           const b=newBatch();
           Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){b[mk]=v instanceof Date?v.toISOString().slice(0,10):typeof v==="string"&&v?new Date(v).toISOString().slice(0,10):"";}else b[mk]=v; });
           if(!b.name&&!b.barcode)continue;
           // 用條碼判斷是否已存在，存在則更新，不存在則新增
-          const existing=b.barcode?items.find(x=>x.barcode===String(b.barcode).trim()):null;
+          // 條碼空白時，改用產品編號當備用 key
+          const barcode=String(b.barcode||"").trim();
+          const productNo=String(b.product_no||"").trim();
+          const existing=barcode
+            ?items.find(x=>String(x.barcode||"").trim()===barcode)
+            :productNo
+              ?items.find(x=>String(x.product_no||"").trim()===productNo)
+              :null;
           if(existing){
             await saveItem({...existing,...b,id:existing.id,created_at:existing.created_at});
             updated++;
@@ -310,9 +321,11 @@ export default function App() {
             await saveItem(b);
           }
           ok++;
+          setImportProgress({current:ok,total:raw.length});
         }
+        setImporting(false);
         setImportLog({ok,updated,added:ok-updated,total:raw.length,file:file.name});showToast(`✅ 匯入完成：新增 ${ok-updated} 筆，更新 ${updated} 筆`);
-      }catch(err){showToast("匯入失敗："+err.message,"error");}
+      }catch(err){setImporting(false);showToast("匯入失敗："+err.message,"error");}
     };
     reader.readAsBinaryString(file);e.target.value="";
   }
@@ -896,6 +909,21 @@ export default function App() {
               <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"11px",background:"#f9fafb",border:"1px solid #e5e7eb",color:"#4b5563",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500}}>取消</button>
               <button onClick={async()=>{ if(!form.name?.trim())return showToast("請填商品名稱","error");await saveItem({...form,id:form.id||genId()});setShowForm(false);showToast("✅ 入庫完成"); }} style={{flex:2,padding:"11px",background:"#2563eb",border:"none",color:"#fff",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700,boxShadow:"0 1px 3px rgba(37,99,235,0.3)"}}>確認入庫</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT LOADING OVERLAY */}
+      {importing&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"#fff",borderRadius:16,padding:"36px 48px",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",minWidth:300}}>
+            <div style={{width:56,height:56,border:"5px solid #e5e7eb",borderTop:"5px solid #2563eb",borderRadius:"50%",margin:"0 auto 20px",animation:"spin 0.9s linear infinite"}}/>
+            <div style={{fontSize:16,fontWeight:700,color:"#111827",marginBottom:8}}>資料匯入中，請稍候…</div>
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:16}}>{importProgress.current} / {importProgress.total} 筆</div>
+            <div style={{background:"#f3f4f6",borderRadius:999,height:10,overflow:"hidden"}}>
+              <div style={{height:"100%",background:"linear-gradient(90deg,#2563eb,#7c3aed)",borderRadius:999,width:`${importProgress.total?Math.round(importProgress.current/importProgress.total*100):0}%`,transition:"width 0.2s"}}/>
+            </div>
+            <div style={{fontSize:12,color:"#9ca3af",marginTop:8}}>{importProgress.total?Math.round(importProgress.current/importProgress.total*100):0}%</div>
           </div>
         </div>
       )}
