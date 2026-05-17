@@ -315,7 +315,14 @@ export default function App() {
               ?items.find(x=>String(x.product_no||"").trim()===productNo)
               :null;
           if(existing){
-            await saveItem({...existing,...b,id:existing.id,created_at:existing.created_at});
+            // 只用 Excel 有填的欄位覆蓋，空白欄位保留原本的值
+            const merged={...existing};
+            Object.entries(b).forEach(([k,v])=>{
+              if(k==="id"||k==="created_at")return;
+              const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
+              if(!isEmpty)merged[k]=v;
+            });
+            await saveItem({...merged,id:existing.id,created_at:existing.created_at});
             updated++;
           } else {
             await saveItem(b);
