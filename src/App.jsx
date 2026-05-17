@@ -325,21 +325,32 @@ export default function App() {
           const b=newBatch();
           Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){const toLocal=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+dd;};b[mk]=v instanceof Date?toLocal(v):typeof v==="string"&&v?toLocal(new Date(v)):"";}else b[mk]=v; });
           if(!b.name&&!b.barcode)continue;
-          // 判斷邏輯：條碼 + 有效日期 組合 → 同批；條碼相同+效期不同 → 新批次
           const barcode=String(b.barcode||"").trim();
           const productNo=String(b.product_no||"").trim();
           const expiryDate=String(b.expiry_date||"").trim();
-          // 先用條碼+效期找完全相同的批次
+
+          // 同條碼所有現有批次
+          const sameBarcodeAll=barcode?items.filter(x=>String(x.barcode||"").trim()===barcode):[];
+
+          // 1. 完全相同（條碼+效期）→ 更新同一批
           const exactMatch=barcode&&expiryDate
-            ?items.find(x=>String(x.barcode||"").trim()===barcode&&String(x.expiry_date||"").trim()===expiryDate)
+            ?sameBarcodeAll.find(x=>String(x.expiry_date||"").trim()===expiryDate)
             :null;
-          // 若沒有完全相同，且沒有效期，再用產品編號找
-          const noDateMatch=!exactMatch&&!expiryDate&&productNo
+
+          // 2. 條碼相同，但系統只有一筆且無效期 → 視為「空殼」，直接更新填入效期
+          const emptyShell=!exactMatch&&barcode&&expiryDate&&sameBarcodeAll.length===1&&!sameBarcodeAll[0].expiry_date
+            ?sameBarcodeAll[0]
+            :null;
+
+          // 3. 無條碼，用產品編號+無效期找空殼
+          const noBarcodShell=!exactMatch&&!emptyShell&&!barcode&&productNo&&expiryDate
             ?items.find(x=>String(x.product_no||"").trim()===productNo&&!x.expiry_date)
             :null;
-          const existing=exactMatch||noDateMatch;
+
+          const existing=exactMatch||emptyShell||noBarcodShell;
+
           if(existing){
-            // 只用 Excel 有填的欄位覆蓋，空白欄位保留原本的值
+            // 更新現有批次，保留空白欄位原值
             const merged={...existing};
             Object.entries(b).forEach(([k,v])=>{
               if(k==="id"||k==="created_at")return;
@@ -349,23 +360,19 @@ export default function App() {
             await saveItem({...merged,id:existing.id,created_at:existing.created_at});
             updated++;
           } else {
-            // 條碼相同但效期不同 → 新批次，複製基本資料
-            if(barcode&&!exactMatch){
-              const sameBarcode=items.find(x=>String(x.barcode||"").trim()===barcode);
-              if(sameBarcode){
-                // 繼承基本資料（名稱、類別、單位、成本、售價、供應商等），只有效期和庫存用新的
-                const inherited={...sameBarcode,id:genId(),created_at:new Date().toISOString()};
-                Object.entries(b).forEach(([k,v])=>{
-                  if(k==="id"||k==="created_at")return;
-                  const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
-                  if(!isEmpty)inherited[k]=v;
-                });
-                await saveItem(inherited);
-                ok++;setImportProgress({current:ok,total:raw.length});
-                continue;
-              }
+            // 條碼相同但效期不同 → 新批次，繼承同條碼的基本資料
+            if(barcode&&sameBarcodeAll.length>0){
+              const base=sameBarcodeAll[0];
+              const inherited={...base,id:genId(),created_at:new Date().toISOString()};
+              Object.entries(b).forEach(([k,v])=>{
+                if(k==="id"||k==="created_at")return;
+                const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
+                if(!isEmpty)inherited[k]=v;
+              });
+              await saveItem(inherited);
+            } else {
+              await saveItem(b);
             }
-            await saveItem(b);
           }
           ok++;
           setImportProgress({current:ok,total:raw.length});
