@@ -199,6 +199,7 @@ export default function App() {
   const [lineMsg,setLineMsg]     = useState("");
   const [importLog,setImportLog] = useState(null);
   const [importing,setImporting] = useState(false);
+  const [fontScale,setFontScale]   = useState(1);
   const [importProgress,setImportProgress] = useState({current:0,total:0});
   const [fifoSku,setFifoSku]     = useState("");
   const [isOnline,setIsOnline]   = useState(false);
@@ -422,7 +423,7 @@ export default function App() {
   ];
 
   return (
-    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#f3f4f6",color:"#111827",fontFamily:"'Noto Sans TC',Arial,sans-serif",overflow:"hidden"}}>
+    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#f3f4f6",color:"#111827",fontFamily:"'Noto Sans TC',Arial,sans-serif",overflow:"hidden",fontSize:`${fontScale}rem`}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
@@ -453,7 +454,7 @@ export default function App() {
       `}</style>
 
       {/* TOP BAR */}
-      <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",height:56,display:"flex",alignItems:"center",padding:"0 16px",gap:8,flexShrink:0,overflowX:"auto",boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
+      <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",height:56,display:"flex",alignItems:"center",padding:"0 24px",gap:8,flexShrink:0,overflowX:"auto",boxShadow:"0 1px 3px rgba(0,0,0,0.08)",width:"100%"}}>
         <div style={{display:"inline-flex",alignItems:"center",marginRight:8,flexShrink:0,background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:999,padding:"6px 18px",boxShadow:"0 2px 8px rgba(37,99,235,0.25)",gap:6}}>
           <span style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>QYIM</span>
           <span style={{width:1,height:14,background:"rgba(255,255,255,0.35)",display:"inline-block"}}/>
@@ -473,11 +474,16 @@ export default function App() {
           </button>
         ))}
         <div style={{flex:1}}/>
+        <div style={{display:"flex",alignItems:"center",gap:4,marginRight:8,background:"#f3f4f6",borderRadius:999,padding:"3px 8px"}}>
+          <button onClick={()=>setFontScale(s=>Math.max(0.8,+(s-0.05).toFixed(2)))} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#6b7280",padding:"2px 6px",borderRadius:999,transition:"all 0.18s",fontFamily:"inherit"}} onMouseEnter={e=>e.currentTarget.style.background="#e5e7eb"} onMouseLeave={e=>e.currentTarget.style.background="none"}>A−</button>
+          <span style={{fontSize:11,color:"#9ca3af",minWidth:32,textAlign:"center"}}>{Math.round(fontScale*100)}%</span>
+          <button onClick={()=>setFontScale(s=>Math.min(1.4,+(s+0.05).toFixed(2)))} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#6b7280",padding:"2px 6px",borderRadius:999,transition:"all 0.18s",fontFamily:"inherit"}} onMouseEnter={e=>e.currentTarget.style.background="#e5e7eb"} onMouseLeave={e=>e.currentTarget.style.background="none"}>A+</button>
+        </div>
         <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#800020",color:"#fff",border:"none",borderRadius:999,padding:"9px 22px",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,cursor:"pointer",transition:"all 0.18s",boxShadow:"0 2px 8px rgba(128,0,32,0.3)"}} onMouseEnter={e=>{e.currentTarget.style.background="#1C1C1E";e.currentTarget.style.color="#80DEEA";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.35)";}} onMouseLeave={e=>{e.currentTarget.style.background="#800020";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 8px rgba(128,0,32,0.3)";}}>＋ 新增批號</button>
       </div>
 
       {/* STATS BAR */}
-      <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",display:"flex",flexShrink:0,overflowX:"auto",padding:"0 8px"}}>
+      <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",display:"flex",flexShrink:0,overflowX:"auto",padding:"0 16px"}}>
         {[
           {key:"all",    lbl:"全部",    val:stats.total,   col:"#2563eb", bg:"#eff6ff"},
           {key:"expired",lbl:"已過期",  val:stats.expired, col:"#dc2626", bg:"#fef2f2"},
@@ -500,7 +506,7 @@ export default function App() {
           <div style={{color:"#9ca3af",fontSize:10,marginTop:2}}>庫存總值</div>
         </div>
         <div style={{flex:1}}/>
-        <div style={{display:"flex",gap:8,alignItems:"center",padding:"0 8px"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"0 16px"}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 搜尋條碼 / 商品 / 批號" style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 12px",borderRadius:7,fontSize:12,width:200,fontFamily:"inherit"}}/>
           <select value={filterCat} onChange={e=>setFC(e.target.value)} style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 10px",borderRadius:7,fontSize:12,fontFamily:"inherit"}}>
             <option value="all">所有類別</option>{dynCats.map(c=><option key={c}>{c}</option>)}
@@ -511,7 +517,7 @@ export default function App() {
 
       {/* ══ DASHBOARD ══ */}
       {tab==="dashboard"&&(
-        <div style={{flex:1,overflow:"auto",padding:20,display:"flex",flexDirection:"column",gap:16}} className="fade">
+        <div style={{flex:1,overflow:"auto",padding:"20px 24px",display:"flex",flexDirection:"column",gap:16}} className="fade">
           <div style={{fontSize:13,fontWeight:700,color:"#374151",letterSpacing:0.5}}>📈 未來 4 個月到期庫存金額</div>
           <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:10,padding:"16px 8px 8px",boxShadow:"0 1px 3px rgba(0,0,0,0.06)"}}>
             <ResponsiveContainer width="100%" height={200}>
@@ -677,7 +683,7 @@ export default function App() {
               {rows.length===0&&loaded&&<div style={{padding:60,textAlign:"center",color:"#9ca3af",fontSize:14}}>📦 {items.length===0?"尚無資料，請點「＋ 新增批號」或匯入 Excel":"沒有符合條件的批號"}</div>}
             </div>
           </div>
-          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12,alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 24px",fontSize:11,color:"#9ca3af",display:"flex",gap:12,alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",gap:12,alignItems:"center"}}>
               <span>顯示 {(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,rows.length)} / {rows.length} 筆（共 {items.length} 筆）</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
             </div>
