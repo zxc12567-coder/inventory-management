@@ -68,7 +68,7 @@ async function idbDel(id) { const db = await openIDB(); return new Promise((res,
 async function idbGet(k) { try { const db=await openIDB(); return new Promise(res => { const r=db.transaction("settings","readonly").objectStore("settings").get(k); r.onsuccess=()=>res(r.result?.v); r.onerror=()=>res(null); }); } catch { return null; } }
 async function idbSet(k,v) { const db=await openIDB(); return new Promise((res,rej)=>{ const r=db.transaction("settings","readwrite").objectStore("settings").put({k,v}); r.onsuccess=()=>res(); r.onerror=()=>rej(); }); }
 
-const CATS = ["食品","飲料","藥品","保養品","清潔用品","保健食品","寵物用品","其他"];
+
 function daysLeft(d) { if(!d)return null; const t=new Date();t.setHours(0,0,0,0);const e=new Date(d);e.setHours(0,0,0,0);return Math.floor((e-t)/86400000); }
 function tierOf(days) { if(days===null)return"none";if(days<0)return"expired";if(days<30)return"red";if(days<90)return"yellow";if(days<=180)return"green";return"safe"; }
 
@@ -184,6 +184,7 @@ export default function App() {
   const [search,setSearch]       = useState("");
   const [filterTier,setFT]       = useState("all");
   const [filterCat,setFC]        = useState("all");
+  const [dynCats,setDynCats]     = useState([]);
   const [sortK,setSortK]         = useState("expiry_date");
   const [sortD,setSortD]         = useState(1);
   const [editCell,setEditCell]   = useState(null);
@@ -219,6 +220,9 @@ export default function App() {
       if(SUPABASE_URL){ setSyncing(true); const {data:d,error}=await sb.select(TABLE); if(!error){data=d||[];setIsOnline(true);}else data=await idbAll(); setSyncing(false); }
     
       setItems(data); setLoaded(true);
+      // 從資料自動抓取所有類別
+      const cats=[...new Set(data.map(b=>b.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"zh"));
+      setDynCats(cats);
     })();
     idbGet("botLog").then(v=>v&&setBotLog(v));
     idbGet("lineToken").then(v=>v&&setLineToken(v));
@@ -229,6 +233,10 @@ export default function App() {
   const showToast=(msg,type="ok")=>{ setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
 
   async function saveItem(item) {
+    // 如果是新類別，加入動態類別清單
+    if(item.category&&!dynCats.includes(item.category)){
+      setDynCats(prev=>[...new Set([...prev,item.category])].sort((a,b)=>a.localeCompare(b,"zh")));
+    }
     const clean={...item}; if(!clean.expiry_date)clean.expiry_date=null;
     await idbPut(clean);
     setItems(prev=>{ const i=prev.findIndex(x=>x.id===clean.id); if(i>=0){const n=[...prev];n[i]=clean;return n;} return [...prev,clean]; });
@@ -423,7 +431,7 @@ export default function App() {
         <div style={{display:"flex",gap:8,alignItems:"center",padding:"0 8px"}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 搜尋條碼 / 商品 / 批號" style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 12px",borderRadius:7,fontSize:12,width:200,fontFamily:"inherit"}}/>
           <select value={filterCat} onChange={e=>setFC(e.target.value)} style={{background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"6px 10px",borderRadius:7,fontSize:12,fontFamily:"inherit"}}>
-            <option value="all">所有類別</option>{CATS.map(c=><option key={c}>{c}</option>)}
+            <option value="all">所有類別</option>{dynCats.map(c=><option key={c}>{c}</option>)}
           </select>
           {selected.size>0&&<button onClick={()=>deleteItems(selected)} style={{background:"#fef2f2",border:"1px solid #fca5a5",color:"#dc2626",padding:"6px 12px",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600}}>🗑 刪除 {selected.size} 筆</button>}
         </div>
@@ -520,7 +528,7 @@ export default function App() {
                               color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="barcode"?"#2563eb":"#4b5563",
                               background:isEd?"#eff6ff":"transparent",outline:isEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
                               onDoubleClick={()=>col.ed&&startEdit(row.id,col.k,row[col.k])}>
-                              {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{CATS.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
+                              {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
                                 col.k==="_tier"&&row._tier!=="none"?(
                                   <span style={{background:tm.bg,color:tm.color,border:`1px solid ${tm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
                                 ):(
@@ -904,7 +912,7 @@ export default function App() {
               {[{k:"barcode",l:"國際條碼"},{k:"product_no",l:"產品編號"},{k:"name",l:"商品名稱 *"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
                 <div key={f.k}>
                   <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:4,fontWeight:500}}>{f.l}</label>
-                  {f.t==="sel"?<select value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}>{CATS.map(c=><option key={c}>{c}</option>)}</select>:<input type={f.t||"text"} value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}/>}
+                  {f.t==="sel"?<select value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>:<input type={f.t||"text"} value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}/>}
                 </div>
               ))}
             </div>
