@@ -303,7 +303,7 @@ export default function App() {
         setImportProgress({current:0,total:raw.length});
         for(const row of raw){
           const b=newBatch();
-          Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){b[mk]=v instanceof Date?v.toISOString().slice(0,10):typeof v==="string"&&v?new Date(v).toISOString().slice(0,10):"";}else b[mk]=v; });
+          Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){const toLocal=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+dd;};b[mk]=v instanceof Date?toLocal(v):typeof v==="string"&&v?toLocal(new Date(v)):"";}else b[mk]=v; });
           if(!b.name&&!b.barcode)continue;
           // 用條碼判斷是否已存在，存在則更新，不存在則新增
           // 條碼空白時，改用產品編號當備用 key
