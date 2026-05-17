@@ -408,12 +408,12 @@ export default function App() {
         <div style={{width:1,height:24,background:"#e5e7eb",margin:"0 4px",flexShrink:0}}/>
         {/* Tabs */}
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} className="btn-tab" style={{background:tab===t.id?"#eff6ff":"transparent",border:"none",borderRadius:999,color:tab===t.id?"#2563eb":"#6b7280",padding:"6px 14px",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,transition:"all 0.18s"}}>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:tab===t.id?"#eff6ff":"transparent",border:"none",borderRadius:999,color:tab===t.id?"#2563eb":"#6b7280",padding:"6px 14px",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,transition:"all 0.18s",cursor:"pointer"}} onMouseEnter={e=>{if(tab!==t.id){e.currentTarget.style.background="#f0f4ff";e.currentTarget.style.color="#2563eb";}}} onMouseLeave={e=>{if(tab!==t.id){e.currentTarget.style.background="transparent";e.currentTarget.style.color="#6b7280";}}}>
             {t.icon} {t.lbl}
           </button>
         ))}
         <div style={{flex:1}}/>
-        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} className="btn-primary" style={{padding:"8px 20px",fontSize:13,fontFamily:"inherit",flexShrink:0}}>＋ 新增批號</button>
+        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#2563eb",color:"#fff",border:"none",borderRadius:999,padding:"9px 22px",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,cursor:"pointer",boxShadow:"0 2px 8px rgba(37,99,235,0.3)",transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(37,99,235,0.4)";}} onMouseLeave={e=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 8px rgba(37,99,235,0.3)";}}>＋ 新增批號</button>
       </div>
 
       {/* STATS BAR */}
@@ -492,7 +492,7 @@ export default function App() {
                 {lbl:"⬆ 匯入 Excel",     act:()=>setTab("import"), color:"#ea580c"},
                 {lbl:"⚙️ 後台管理介面",   act:()=>setTab("admin"),  color:"#6b7280"},
               ].map((a,i)=>(
-                <button key={i} onClick={a.act} className="hb" style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"9px 12px",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",marginBottom:6,transition:"all 0.15s"}}>
+                <button key={i} onClick={a.act} className="hb" style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",background:"#f9fafb",border:"1px solid #e5e7eb",color:"#374151",padding:"10px 16px",borderRadius:999,cursor:"pointer",fontSize:13,fontFamily:"inherit",marginBottom:6,transition:"all 0.18s"}}>
                   {a.lbl}
                 </button>
               ))}
@@ -571,7 +571,7 @@ export default function App() {
               ))}
               <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} style={{background:page===totalPages?"#f3f4f6":"#fff",border:"1px solid #e5e7eb",color:page===totalPages?"#d1d5db":"#374151",padding:"3px 10px",borderRadius:5,cursor:page===totalPages?"default":"pointer",fontSize:11,fontFamily:"inherit"}}>下一頁 ›</button>
             </div>}
-            <button onClick={()=>{const r=rows.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅");}} className="btn-primary btn-sm" style={{fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
+            <button onClick={()=>{const r=rows.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅");}} style={{background:"#2563eb",border:"none",color:"#fff",padding:"5px 14px",borderRadius:999,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.transform="translateY(0)";}}>⬇ 匯出篩選結果</button>
           </div>
         </div>
       )}
@@ -719,7 +719,7 @@ export default function App() {
             <div style={aH1}>⬆ 批次匯入 Excel</div>
             <div style={aBox}>
               <div style={aH2}>步驟 1 — 下載範本</div>
-              <button onClick={downloadTemplate} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"9px 18px",borderRadius:6,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600}}>📥 下載 Excel 範本</button>
+              <button onClick={downloadTemplate} style={{background:"#eff6ff",border:"1px solid #bfdbfe",color:"#2563eb",padding:"9px 20px",borderRadius:999,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600,transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#eff6ff";e.currentTarget.style.color="#2563eb";e.currentTarget.style.transform="translateY(0)";}}>📥 下載 Excel 範本</button>
               <div style={{color:"#9ca3af",fontSize:12,marginTop:8}}>欄位：條碼、商品名稱、批號、有效日期、類別、庫存量、單位、成本價、售價、儲位、供應商、備註</div>
             </div>
             <div style={{...aBox,border:"2px dashed #d1d5db",textAlign:"center",cursor:"pointer",padding:32}} onClick={()=>fileRef.current?.click()}>
@@ -873,7 +873,7 @@ export default function App() {
                 ].map((btn,i)=>(
                   <div key={i} style={{...aBox,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <div><div style={{color:"#111827",fontSize:13,fontWeight:600}}>{btn.lbl}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{btn.desc}</div></div>
-                    <button onClick={btn.act} className="btn-primary btn-sm" style={{fontFamily:"inherit",flexShrink:0,marginLeft:14,padding:"8px 16px"}}>匯出</button>
+                    <button onClick={btn.act} style={{background:"#2563eb",border:"none",color:"#fff",padding:"8px 18px",borderRadius:999,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,flexShrink:0,marginLeft:14,transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.transform="translateY(0)";}}>匯出</button>
                   </div>
                 ))}
               </div>
@@ -933,8 +933,8 @@ export default function App() {
               <input value={form.note||""} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{...fldSt,width:"100%"}} placeholder="選填"/>
             </div>
             <div style={{display:"flex",gap:10,marginTop:18}}>
-              <button onClick={()=>setShowForm(false)} className="btn-secondary" style={{flex:1,padding:"11px",fontSize:13,fontFamily:"inherit"}}>取消</button>
-              <button onClick={async()=>{ if(!form.name?.trim())return showToast("請填商品名稱","error");await saveItem({...form,id:form.id||genId()});setShowForm(false);showToast("✅ 入庫完成"); }} className="btn-primary" style={{flex:2,padding:"11px",fontSize:13,fontFamily:"inherit"}}>確認入庫</button>
+              <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"11px",background:"#f3f4f6",border:"1px solid #e5e7eb",color:"#4b5563",borderRadius:999,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500,transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#e5e7eb";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#f3f4f6";e.currentTarget.style.transform="translateY(0)";}}>取消</button>
+              <button onClick={async()=>{ if(!form.name?.trim())return showToast("請填商品名稱","error");await saveItem({...form,id:form.id||genId()});setShowForm(false);showToast("✅ 入庫完成"); }} style={{flex:2,padding:"11px",background:"#2563eb",border:"none",color:"#fff",borderRadius:999,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700,boxShadow:"0 2px 8px rgba(37,99,235,0.3)",transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#2563eb";e.currentTarget.style.transform="translateY(0)";}}>確認入庫</button>
             </div>
           </div>
         </div>
