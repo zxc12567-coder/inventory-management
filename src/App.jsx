@@ -638,7 +638,7 @@ export default function App() {
                               if(col.k==="_tier")disp=subTm2.label;
                               return(
                                 <div key={col.k}
-                                  style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",fontSize:12,
+                                  style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",justifyContent:"center",borderRight:"1px solid #f1f5f9",fontSize:12,
                                     color:col.k==="_days"?subTm2.color:"#374151",
                                     cursor:col.ed?"cell":"default",
                                     background:isSubEd?"#dbeafe":"transparent",
