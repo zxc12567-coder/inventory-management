@@ -76,7 +76,7 @@ const TIER = {
 function genId() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
 function fmtMoney(n) { return n?`$${Number(n).toLocaleString()}`:"—"; }
 function fmtDate(d) { return d?d.slice(0,10):""; }
-function newBatch(o={}) { return { id:genId(),barcode:"",product_no:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
+function newBatch(o={}) { return { id:genId(),barcode:"",product_no:"",name:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
 function toSB(r) { return {...r, expiry_date:r.expiry_date||null, qty:Number(r.qty)||0, cost:Number(r.cost)||0, price:Number(r.price)||0 }; }
 
 function buildChart(items) {
@@ -101,7 +101,6 @@ const COLS=[
   {k:"barcode",    lbl:"條碼",     w:120,ed:true},
   {k:"product_no",  lbl:"產品編號",  w:130,ed:true},
   {k:"name",       lbl:"商品名稱", w:170,ed:true},
-  {k:"batch_no",   lbl:"批號",     w:110,ed:true},
   {k:"category",   lbl:"類別",     w:85, ed:true,type:"sel"},
   {k:"expiry_date",lbl:"有效日期", w:115,ed:true,type:"date"},
   {k:"_days",      lbl:"剩餘天數", w:85, ed:false},
@@ -853,7 +852,7 @@ export default function App() {
           <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:24,width:"100%",maxWidth:540,maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
             <div style={{fontSize:16,fontWeight:700,color:"#111827",marginBottom:16}}>＋ 新增批號入庫</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{k:"barcode",l:"國際條碼"},{k:"product_no",l:"產品編號"},{k:"name",l:"商品名稱 *"},{k:"batch_no",l:"批號"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
+              {[{k:"barcode",l:"國際條碼"},{k:"product_no",l:"產品編號"},{k:"name",l:"商品名稱 *"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
                 <div key={f.k}>
                   <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:4,fontWeight:500}}>{f.l}</label>
                   {f.t==="sel"?<select value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}>{CATS.map(c=><option key={c}>{c}</option>)}</select>:<input type={f.t||"text"} value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}/>}
