@@ -598,33 +598,14 @@ export default function App() {
                             <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",cursor:col.ed?"cell":"default",fontSize:12,userSelect:"text",
                               color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="barcode"?"#2563eb":"#4b5563",
                               background:isEd?"#eff6ff":"transparent",outline:isEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                              onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(row.id,col.k,row[col.k])}}>
+                              onDoubleClick={()=>col.ed&&startEdit(row.id,col.k,row[col.k])}>
                               {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
                                 col.k==="_tier"&&row._tier!=="none"?(
                                   <span style={{background:tm.bg,color:tm.color,border:`1px solid ${tm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
                                 ):col.k==="expiry_date"&&row._batchCount>1?(
-                                  <div style={{width:"100%",position:"relative"}}>
-                                    <button onClick={e=>{e.stopPropagation();setExpandedRows(prev=>{const n=new Set(prev);const key=String(row.barcode||"").trim();n.has(key)?n.delete(key):n.add(key);return n;});}} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:12,color:"#2563eb",fontWeight:500,padding:0,width:"100%"}}>
-                                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,textAlign:"left"}}>{disp||"—"}</span>
-                                      <span style={{fontSize:10,background:"#eff6ff",color:"#2563eb",borderRadius:999,padding:"1px 6px",flexShrink:0,fontWeight:700}}>{row._batchCount}批</span>
-                                      <span style={{fontSize:10,transition:"transform 0.2s",transform:expandedRows.has(String(row.barcode||"").trim())?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
-                                    </button>
-                                    {expandedRows.has(String(row.barcode||"").trim())&&(
-                                      <div style={{position:"absolute",top:"100%",left:0,zIndex:200,background:"#fff",border:"1px solid #e5e7eb",borderRadius:8,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",minWidth:220,padding:8}}>
-                                        <div style={{fontSize:10,color:"#9ca3af",fontWeight:600,marginBottom:6,letterSpacing:0.5}}>所有批次（依效期排序）</div>
-                                        {row._batches.sort((a,b)=>(a.expiry_date||"")>(b.expiry_date||"")?1:-1).map((bt,bi)=>{
-                                          const btDays=daysLeft(bt.expiry_date);const btTier=tierOf(btDays);const btTm=TIER[btTier];
-                                          return(
-                                            <div key={bt.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 6px",borderRadius:5,background:bi%2===0?"#f8fafc":"#fff",marginBottom:2}}>
-                                              <span style={{fontSize:10,color:"#9ca3af",minWidth:20,fontWeight:600}}>#{bi+1}</span>
-                                              <span style={{fontSize:11,color:"#374151",fontWeight:500,flex:1,whiteSpace:"nowrap"}}>{bt.expiry_date?bt.expiry_date.slice(0,10):"無效期"}</span>
-                                              <span style={{fontSize:11,color:"#111827",fontWeight:600,minWidth:40,textAlign:"right"}}>{bt.qty}{bt.unit}</span>
-                                              <span style={{background:btTm.bg,color:btTm.color,border:`1px solid ${btTm.border}`,padding:"1px 5px",borderRadius:4,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>{btTm.label}</span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
+                                  <div style={{display:"flex",alignItems:"center",gap:4,width:"100%"}}>
+                                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,fontSize:12,color:"#374151"}}>{disp||"—"}</span>
+                                    <span style={{fontSize:10,background:"#eff6ff",color:"#2563eb",borderRadius:999,padding:"1px 6px",flexShrink:0,fontWeight:700}}>{row._batchCount}批</span>
                                   </div>
                                 ):(
                                   <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%",fontWeight:col.k==="name"?500:400,...(col.k==="cost"||col.k==="price"?{color:"#16a34a",fontWeight:500}:{})}}>
@@ -662,7 +643,7 @@ export default function App() {
                                     cursor:col.ed?"cell":"default",
                                     background:isSubEd?"#dbeafe":"transparent",
                                     outline:isSubEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                                  onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(sub.id,col.k,sub[col.k])}}>
+                                  onDoubleClick={()=>col.ed&&startEdit(sub.id,col.k,sub[col.k])}>
                                   {isSubEd?(
                                     col.type==="sel"?(
                                       <select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>
