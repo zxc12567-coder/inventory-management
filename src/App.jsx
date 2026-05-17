@@ -76,7 +76,7 @@ const TIER = {
 function genId() { return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==="x"?r:(r&0x3|0x8)).toString(16);}); }
 function fmtMoney(n) { return n?`$${Number(n).toLocaleString()}`:"—"; }
 function fmtDate(d) { return d?d.slice(0,10):""; }
-function newBatch(o={}) { return { id:genId(),barcode:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
+function newBatch(o={}) { return { id:genId(),barcode:"",product_no:"",name:"",batch_no:"",category:"食品",expiry_date:"",qty:0,unit:"個",cost:0,price:0,location:"",supplier:"",note:"",created_at:new Date().toISOString(),...o }; }
 function toSB(r) { return {...r, expiry_date:r.expiry_date||null, qty:Number(r.qty)||0, cost:Number(r.cost)||0, price:Number(r.price)||0 }; }
 
 function buildChart(items) {
@@ -99,6 +99,7 @@ function useVScroll(n, ref) {
 
 const COLS=[
   {k:"barcode",    lbl:"條碼",     w:120,ed:true},
+  {k:"product_no",  lbl:"產品編號",  w:130,ed:true},
   {k:"name",       lbl:"商品名稱", w:170,ed:true},
   {k:"batch_no",   lbl:"批號",     w:110,ed:true},
   {k:"category",   lbl:"類別",     w:85, ed:true,type:"sel"},
@@ -126,6 +127,7 @@ const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS inventory_batches (",
   "  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),",
   "  barcode       TEXT,",
+  "  product_no    TEXT,",
   "  name         TEXT NOT NULL,",
   "  batch_no     TEXT,",
   "  category     TEXT DEFAULT '食品',",
@@ -281,7 +283,7 @@ export default function App() {
       try{
         const wb=XLSX.read(ev.target.result,{type:"binary",cellDates:true});
         const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
-        const MAP={"SKU":"barcode","sku":"barcode","barcode":"barcode","條碼":"barcode","商品名稱":"name","name":"name","批號":"batch_no","有效日期":"expiry_date","到期日":"expiry_date","類別":"category","庫存量":"qty","qty":"qty","數量":"qty","單位":"unit","成本":"cost","成本價":"cost","售價":"price","儲位":"location","供應商":"supplier","備註":"note"};
+        const MAP={"SKU":"barcode","sku":"barcode","barcode":"barcode","條碼":"barcode","產品編號":"product_no","product_no":"product_no","商品名稱":"name","name":"name","批號":"batch_no","有效日期":"expiry_date","到期日":"expiry_date","類別":"category","庫存量":"qty","qty":"qty","數量":"qty","單位":"unit","成本":"cost","成本價":"cost","售價":"price","儲位":"location","供應商":"supplier","備註":"note"};
         let ok=0;
         for(const row of raw){
           const b=newBatch();
@@ -751,7 +753,8 @@ export default function App() {
                   <pre style={{...codeS,maxHeight:340,overflow:"auto"}}>{SCHEMA}</pre>
                 </div>
                 <div style={aBox}><div style={aH2}>欄位說明</div>
-                  {[["id","UUID","主鍵，自動產生"],["barcode","TEXT","國際條碼"],["name","TEXT","商品名稱（必填）"],["batch_no","TEXT","批號，FIFO追蹤用"],["expiry_date","DATE","有效日期"],["qty","INTEGER","庫存數量"],["cost","NUMERIC","成本價"],["price","NUMERIC","售價"],["location","TEXT","儲位"],["created_at","TIMESTAMPTZ","建立時間（自動）"]].map(([c,t,d])=>(
+                  {[["id","UUID","主鍵，自動產生"],["barcode","TEXT","國際條碼"],
+                    ["product_no","TEXT","產品編號"],["name","TEXT","商品名稱（必填）"],["batch_no","TEXT","批號，FIFO追蹤用"],["expiry_date","DATE","有效日期"],["qty","INTEGER","庫存數量"],["cost","NUMERIC","成本價"],["price","NUMERIC","售價"],["location","TEXT","儲位"],["created_at","TIMESTAMPTZ","建立時間（自動）"]].map(([c,t,d])=>(
                     <div key={c} style={{display:"flex",gap:12,padding:"6px 0",borderBottom:"1px solid #f3f4f6",fontSize:12}}>
                       <span style={{color:"#2563eb",width:110,flexShrink:0,fontWeight:600}}>{c}</span>
                       <span style={{color:"#16a34a",width:80,flexShrink:0}}>{t}</span>
@@ -850,7 +853,7 @@ export default function App() {
           <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:24,width:"100%",maxWidth:540,maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}}>
             <div style={{fontSize:16,fontWeight:700,color:"#111827",marginBottom:16}}>＋ 新增批號入庫</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[{k:"barcode",l:"國際條碼"},{k:"name",l:"商品名稱 *"},{k:"batch_no",l:"批號"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
+              {[{k:"barcode",l:"國際條碼"},{k:"product_no",l:"產品編號"},{k:"name",l:"商品名稱 *"},{k:"batch_no",l:"批號"},{k:"expiry_date",l:"有效日期",t:"date"},{k:"category",l:"類別",t:"sel"},{k:"qty",l:"庫存量",t:"number"},{k:"unit",l:"單位"},{k:"cost",l:"成本價",t:"number"},{k:"price",l:"售價",t:"number"},{k:"location",l:"儲位"},{k:"supplier",l:"供應商"}].map(f=>(
                 <div key={f.k}>
                   <label style={{fontSize:11,color:"#6b7280",display:"block",marginBottom:4,fontWeight:500}}>{f.l}</label>
                   {f.t==="sel"?<select value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}>{CATS.map(c=><option key={c}>{c}</option>)}</select>:<input type={f.t||"text"} value={form[f.k]||""} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} style={fldSt}/>}
