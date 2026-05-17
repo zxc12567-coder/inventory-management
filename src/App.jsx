@@ -598,7 +598,7 @@ export default function App() {
                             <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",cursor:col.ed?"cell":"default",fontSize:12,userSelect:"text",
                               color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="barcode"?"#2563eb":"#4b5563",
                               background:isEd?"#eff6ff":"transparent",outline:isEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                              onDoubleClick={()=>{if(window.getSelection()?.toString())return;col.ed&&startEdit(row.id,col.k,row[col.k])}}>
+                              onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(row.id,col.k,row[col.k])}}>
                               {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
                                 col.k==="_tier"&&row._tier!=="none"?(
                                   <span style={{background:tm.bg,color:tm.color,border:`1px solid ${tm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
@@ -662,7 +662,7 @@ export default function App() {
                                     cursor:col.ed?"cell":"default",
                                     background:isSubEd?"#dbeafe":"transparent",
                                     outline:isSubEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                                  onDoubleClick={()=>{if(window.getSelection()?.toString())return;col.ed&&startEdit(sub.id,col.k,sub[col.k])}}>
+                                  onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(sub.id,col.k,sub[col.k])}}>
                                   {isSubEd?(
                                     col.type==="sel"?(
                                       <select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>
