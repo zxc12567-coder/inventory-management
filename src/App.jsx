@@ -208,6 +208,7 @@ export default function App() {
   const [stOperator,setStOp]     = useState("");
   const [stPending,setStPending] = useState(null);
   const [page,setPage]           = useState(1);
+  const [expandedRows,setExpandedRows] = useState(new Set());
   const PAGE_SIZE = 1000;
 
   const gridRef = useRef(null);
@@ -255,7 +256,18 @@ export default function App() {
     if(filterTier!=="all")r=r.filter(x=>x._tier===filterTier);
     if(filterCat!=="all")r=r.filter(x=>x.category===filterCat);
     r.sort((a,b)=>{ let av=a[sortK]??"",bv=b[sortK]??""; if(sortK==="_days"){av=a._days??9999;bv=b._days??9999;} return(typeof av==="number"?av-bv:String(av).localeCompare(String(bv),"zh"))*sortD; });
-    return r;
+    // 標記每個條碼的批次資訊
+    const barcodeMap={};
+    r.forEach(row=>{
+      const key=String(row.barcode||"").trim()||row.id;
+      if(!barcodeMap[key])barcodeMap[key]=[];
+      barcodeMap[key].push(row);
+    });
+    return r.map(row=>{
+      const key=String(row.barcode||"").trim()||row.id;
+      const batches=barcodeMap[key];
+      return {...row,_batches:batches,_batchCount:batches.length,_isFirstBatch:batches[0].id===row.id};
+    });
   },[items,search,filterTier,filterCat,sortK,sortD]);
 
   const totalPages=Math.ceil(rows.length/PAGE_SIZE);
@@ -313,15 +325,19 @@ export default function App() {
           const b=newBatch();
           Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){const toLocal=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+dd;};b[mk]=v instanceof Date?toLocal(v):typeof v==="string"&&v?toLocal(new Date(v)):"";}else b[mk]=v; });
           if(!b.name&&!b.barcode)continue;
-          // 用條碼判斷是否已存在，存在則更新，不存在則新增
-          // 條碼空白時，改用產品編號當備用 key
+          // 判斷邏輯：條碼 + 有效日期 組合 → 同批；條碼相同+效期不同 → 新批次
           const barcode=String(b.barcode||"").trim();
           const productNo=String(b.product_no||"").trim();
-          const existing=barcode
-            ?items.find(x=>String(x.barcode||"").trim()===barcode)
-            :productNo
-              ?items.find(x=>String(x.product_no||"").trim()===productNo)
-              :null;
+          const expiryDate=String(b.expiry_date||"").trim();
+          // 先用條碼+效期找完全相同的批次
+          const exactMatch=barcode&&expiryDate
+            ?items.find(x=>String(x.barcode||"").trim()===barcode&&String(x.expiry_date||"").trim()===expiryDate)
+            :null;
+          // 若沒有完全相同，且沒有效期，再用產品編號找
+          const noDateMatch=!exactMatch&&!expiryDate&&productNo
+            ?items.find(x=>String(x.product_no||"").trim()===productNo&&!x.expiry_date)
+            :null;
+          const existing=exactMatch||noDateMatch;
           if(existing){
             // 只用 Excel 有填的欄位覆蓋，空白欄位保留原本的值
             const merged={...existing};
@@ -333,6 +349,22 @@ export default function App() {
             await saveItem({...merged,id:existing.id,created_at:existing.created_at});
             updated++;
           } else {
+            // 條碼相同但效期不同 → 新批次，複製基本資料
+            if(barcode&&!exactMatch){
+              const sameBarcode=items.find(x=>String(x.barcode||"").trim()===barcode);
+              if(sameBarcode){
+                // 繼承基本資料（名稱、類別、單位、成本、售價、供應商等），只有效期和庫存用新的
+                const inherited={...sameBarcode,id:genId(),created_at:new Date().toISOString()};
+                Object.entries(b).forEach(([k,v])=>{
+                  if(k==="id"||k==="created_at")return;
+                  const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
+                  if(!isEmpty)inherited[k]=v;
+                });
+                await saveItem(inherited);
+                ok++;setImportProgress({current:ok,total:raw.length});
+                continue;
+              }
+            }
             await saveItem(b);
           }
           ok++;
@@ -544,6 +576,30 @@ export default function App() {
                               {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
                                 col.k==="_tier"&&row._tier!=="none"?(
                                   <span style={{background:tm.bg,color:tm.color,border:`1px solid ${tm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
+                                ):col.k==="expiry_date"&&row._batchCount>1?(
+                                  <div style={{width:"100%",position:"relative"}}>
+                                    <button onClick={e=>{e.stopPropagation();setExpandedRows(prev=>{const n=new Set(prev);const key=String(row.barcode||"").trim();n.has(key)?n.delete(key):n.add(key);return n;});}} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:12,color:"#2563eb",fontWeight:500,padding:0,width:"100%"}}>
+                                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,textAlign:"left"}}>{disp||"—"}</span>
+                                      <span style={{fontSize:10,background:"#eff6ff",color:"#2563eb",borderRadius:999,padding:"1px 6px",flexShrink:0,fontWeight:700}}>{row._batchCount}批</span>
+                                      <span style={{fontSize:10,transition:"transform 0.2s",transform:expandedRows.has(String(row.barcode||"").trim())?"rotate(180deg)":"rotate(0deg)"}}>▼</span>
+                                    </button>
+                                    {expandedRows.has(String(row.barcode||"").trim())&&(
+                                      <div style={{position:"absolute",top:"100%",left:0,zIndex:200,background:"#fff",border:"1px solid #e5e7eb",borderRadius:8,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",minWidth:220,padding:8}}>
+                                        <div style={{fontSize:10,color:"#9ca3af",fontWeight:600,marginBottom:6,letterSpacing:0.5}}>所有批次（依效期排序）</div>
+                                        {row._batches.sort((a,b)=>(a.expiry_date||"")>(b.expiry_date||"")?1:-1).map((bt,bi)=>{
+                                          const btDays=daysLeft(bt.expiry_date);const btTier=tierOf(btDays);const btTm=TIER[btTier];
+                                          return(
+                                            <div key={bt.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 6px",borderRadius:5,background:bi%2===0?"#f8fafc":"#fff",marginBottom:2}}>
+                                              <span style={{fontSize:10,color:"#9ca3af",minWidth:20,fontWeight:600}}>#{bi+1}</span>
+                                              <span style={{fontSize:11,color:"#374151",fontWeight:500,flex:1}}>{bt.expiry_date?bt.expiry_date.slice(0,10):"無效期"}</span>
+                                              <span style={{fontSize:11,color:"#111827",fontWeight:600,minWidth:40,textAlign:"right"}}>{bt.qty}{bt.unit}</span>
+                                              <span style={{background:btTm.bg,color:btTm.color,border:`1px solid ${btTm.border}`,padding:"1px 5px",borderRadius:4,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>{btTm.label}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
                                 ):(
                                   <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%",fontWeight:col.k==="name"?500:400,...(col.k==="cost"||col.k==="price"?{color:"#16a34a",fontWeight:500}:{})}}>
                                     {col.k==="cost"||col.k==="price"?fmtMoney(disp):String(disp)}
