@@ -337,30 +337,34 @@ export default function App() {
           const barcode=String(b.barcode||"").trim();
           const productNo=String(b.product_no||"").trim();
           const expiryDate=String(b.expiry_date||"").trim();
-          const processKey=`${barcode}__${expiryDate}`;
+          const processKey=`${barcode||productNo}__${expiryDate}`;
 
-          // 已處理過相同條碼+效期 → 跳過
+          // 已處理過相同 key → 跳過
           if(processedKeys.has(processKey)){ok++;setImportProgress({current:ok,total:raw.length});continue;}
 
           // 從 localItems 找同條碼所有批次
           const sameBarcodeAll=barcode?localItems.filter(x=>String(x.barcode||"").trim()===barcode):[];
 
-          // 1. 完全相同（條碼+效期）→ 更新同一批
-          const exactMatch=barcode&&expiryDate
-            ?sameBarcodeAll.find(x=>String(x.expiry_date||"").trim()===expiryDate)
-            :null;
+          // ── 判斷邏輯 ──
+          // 規則：條碼或產品編號相同，不管填什麼欄位，優先更新現有資料
+          // 只有「條碼相同 + 有效日期是全新的」才新增批次
+          let existing=null;
 
-          // 2. 條碼相同，有一筆無效期且本次是第一批 → 視為空殼，更新填入效期
-          const shellRecord=!exactMatch&&barcode&&expiryDate
-            ?sameBarcodeAll.find(x=>!String(x.expiry_date||"").trim())
-            :null;
-
-          // 3. 無條碼，用產品編號+無效期找空殼
-          const noBarcodShell=!exactMatch&&!shellRecord&&!barcode&&productNo&&expiryDate
-            ?localItems.find(x=>String(x.product_no||"").trim()===productNo&&!x.expiry_date)
-            :null;
-
-          const existing=exactMatch||shellRecord||noBarcodShell;
+          if(barcode){
+            if(expiryDate){
+              // 有效期 → 找完全相同批次（條碼+效期）
+              existing=sameBarcodeAll.find(x=>String(x.expiry_date||"").trim()===expiryDate)||null;
+              // 找不到相同效期 → 找無效期的空殼更新
+              if(!existing) existing=sameBarcodeAll.find(x=>!String(x.expiry_date||"").trim())||null;
+              // 還是找不到 → 才新增新批次
+            } else {
+              // 沒有效期 → 直接找第一筆更新，不新增
+              existing=sameBarcodeAll.find(x=>!String(x.expiry_date||"").trim())||sameBarcodeAll[0]||null;
+            }
+          } else if(productNo){
+            // 沒有條碼，用產品編號找
+            existing=localItems.find(x=>String(x.product_no||"").trim()===productNo)||null;
+          }
 
           if(existing){
             const merged={...existing};
@@ -371,12 +375,11 @@ export default function App() {
             });
             const saved={...merged,id:existing.id,created_at:existing.created_at};
             await saveItem(saved);
-            // 更新 localItems 中對應的那筆
             localItems=localItems.map(x=>x.id===existing.id?saved:x);
             processedKeys.add(processKey);
             updated++;
           } else {
-            // 新批次：繼承同條碼基本資料
+            // 條碼相同但效期全新 → 新增新批次，繼承基本資料
             let newItem=b;
             if(barcode&&sameBarcodeAll.length>0){
               const base=sameBarcodeAll[0];
@@ -388,7 +391,6 @@ export default function App() {
               });
             }
             await saveItem(newItem);
-            // 即時加入 localItems
             localItems=[...localItems,newItem];
             processedKeys.add(processKey);
           }
