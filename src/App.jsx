@@ -295,7 +295,7 @@ export default function App() {
     const list=items.filter(b=>{const d=daysLeft(b.expiry_date);return d!==null&&d<90;}).sort((a,b)=>daysLeft(a.expiry_date)-daysLeft(b.expiry_date)).slice(0,25);
     if(!list.length){setLineMsg(`【庫存效期報告】${today}\n✅ 全部正常`);return;}
     const lines=list.map(b=>{ const d=daysLeft(b.expiry_date);const t=tierOf(d);const icon=t==="expired"?"🔴":t==="red"?"🟠":"🟡";return `${icon} ${b.name}（${b.batch_no||"—"}）剩${d<0?`過期${Math.abs(d)}天`:d+"天"} ×${b.qty}${b.unit}`; });
-    setLineMsg(`【庫存效期報告】${today}\n共 ${list.length} 筆需注意：\n\n${lines.join("\n")}\n\n⚙️ Inventory Pro`);
+    setLineMsg(`【庫存效期報告】${today}\n共 ${list.length} 筆需注意：\n\n${lines.join("\n")}\n\n⚙️ QYIM 庫存有效管理`);
   }
 
   async function handleImport(e){
@@ -379,13 +379,25 @@ export default function App() {
         .fade{animation:fadeUp .18s ease;}
         textarea{resize:vertical;}
         .tab-active{border-bottom:2px solid #2563eb;color:#2563eb;font-weight:600;}
+
+        /* 全站膠囊按鈕樣式 */
+        button{transition:all 0.18s ease!important;cursor:pointer!important;}
+        .btn-primary{border-radius:999px!important;background:#2563eb!important;color:#fff!important;border:none!important;font-weight:600!important;box-shadow:0 2px 8px rgba(37,99,235,0.25)!important;}
+        .btn-primary:hover{background:#1d4ed8!important;box-shadow:0 4px 16px rgba(37,99,235,0.4)!important;transform:translateY(-1px)!important;}
+        .btn-secondary{border-radius:999px!important;background:#f3f4f6!important;color:#374151!important;border:1px solid #e5e7eb!important;font-weight:500!important;}
+        .btn-secondary:hover{background:#e5e7eb!important;border-color:#d1d5db!important;transform:translateY(-1px)!important;}
+        .btn-danger{border-radius:999px!important;background:#fee2e2!important;color:#dc2626!important;border:1px solid #fca5a5!important;font-weight:600!important;}
+        .btn-danger:hover{background:#dc2626!important;color:#fff!important;transform:translateY(-1px)!important;}
+        .btn-tab:hover{background:#eff6ff!important;color:#2563eb!important;border-radius:999px!important;}
+        .btn-sm{border-radius:999px!important;font-size:11px!important;font-weight:600!important;}
+        .btn-sm:hover{transform:translateY(-1px)!important;box-shadow:0 3px 10px rgba(0,0,0,0.12)!important;}
       `}</style>
 
       {/* TOP BAR */}
       <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",height:56,display:"flex",alignItems:"center",padding:"0 16px",gap:8,flexShrink:0,overflowX:"auto",boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginRight:8,flexShrink:0}}>
           <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#2563eb,#7c3aed)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14}}>IP</div>
-          <span style={{fontWeight:700,fontSize:15,color:"#111827",letterSpacing:0.5}}>Inventory Pro</span>
+          <span style={{fontWeight:700,fontSize:15,color:"#111827",letterSpacing:0.5}}>QYIM 庫存有效管理</span>
         </div>
         <div style={{width:1,height:24,background:"#e5e7eb",margin:"0 4px",flexShrink:0}}/>
         {/* Connection badge */}
@@ -396,12 +408,12 @@ export default function App() {
         <div style={{width:1,height:24,background:"#e5e7eb",margin:"0 4px",flexShrink:0}}/>
         {/* Tabs */}
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:"transparent",border:"none",borderBottom:tab===t.id?"2px solid #2563eb":"2px solid transparent",color:tab===t.id?"#2563eb":"#6b7280",padding:"4px 10px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,marginBottom:"-1px",transition:"all 0.15s"}}>
+          <button key={t.id} onClick={()=>setTab(t.id)} className="btn-tab" style={{background:tab===t.id?"#eff6ff":"transparent",border:"none",borderRadius:999,color:tab===t.id?"#2563eb":"#6b7280",padding:"6px 14px",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,transition:"all 0.18s"}}>
             {t.icon} {t.lbl}
           </button>
         ))}
         <div style={{flex:1}}/>
-        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#2563eb",border:"none",color:"#fff",padding:"7px 16px",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,boxShadow:"0 1px 3px rgba(37,99,235,0.3)"}}>＋ 新增批號</button>
+        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} className="btn-primary" style={{padding:"8px 20px",fontSize:13,fontFamily:"inherit",flexShrink:0}}>＋ 新增批號</button>
       </div>
 
       {/* STATS BAR */}
@@ -559,7 +571,7 @@ export default function App() {
               ))}
               <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} style={{background:page===totalPages?"#f3f4f6":"#fff",border:"1px solid #e5e7eb",color:page===totalPages?"#d1d5db":"#374151",padding:"3px 10px",borderRadius:5,cursor:page===totalPages?"default":"pointer",fontSize:11,fontFamily:"inherit"}}>下一頁 ›</button>
             </div>}
-            <button onClick={()=>{const r=rows.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅");}} style={{background:"#2563eb",border:"none",color:"#fff",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
+            <button onClick={()=>{const r=rows.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅");}} className="btn-primary btn-sm" style={{fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
           </div>
         </div>
       )}
@@ -861,7 +873,7 @@ export default function App() {
                 ].map((btn,i)=>(
                   <div key={i} style={{...aBox,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <div><div style={{color:"#111827",fontSize:13,fontWeight:600}}>{btn.lbl}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{btn.desc}</div></div>
-                    <button onClick={btn.act} style={{background:"#2563eb",border:"none",color:"#fff",padding:"8px 16px",borderRadius:6,cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:600,flexShrink:0,marginLeft:14}}>匯出</button>
+                    <button onClick={btn.act} className="btn-primary btn-sm" style={{fontFamily:"inherit",flexShrink:0,marginLeft:14,padding:"8px 16px"}}>匯出</button>
                   </div>
                 ))}
               </div>
@@ -921,8 +933,8 @@ export default function App() {
               <input value={form.note||""} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{...fldSt,width:"100%"}} placeholder="選填"/>
             </div>
             <div style={{display:"flex",gap:10,marginTop:18}}>
-              <button onClick={()=>setShowForm(false)} style={{flex:1,padding:"11px",background:"#f9fafb",border:"1px solid #e5e7eb",color:"#4b5563",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500}}>取消</button>
-              <button onClick={async()=>{ if(!form.name?.trim())return showToast("請填商品名稱","error");await saveItem({...form,id:form.id||genId()});setShowForm(false);showToast("✅ 入庫完成"); }} style={{flex:2,padding:"11px",background:"#2563eb",border:"none",color:"#fff",borderRadius:7,cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:700,boxShadow:"0 1px 3px rgba(37,99,235,0.3)"}}>確認入庫</button>
+              <button onClick={()=>setShowForm(false)} className="btn-secondary" style={{flex:1,padding:"11px",fontSize:13,fontFamily:"inherit"}}>取消</button>
+              <button onClick={async()=>{ if(!form.name?.trim())return showToast("請填商品名稱","error");await saveItem({...form,id:form.id||genId()});setShowForm(false);showToast("✅ 入庫完成"); }} className="btn-primary" style={{flex:2,padding:"11px",fontSize:13,fontFamily:"inherit"}}>確認入庫</button>
             </div>
           </div>
         </div>
