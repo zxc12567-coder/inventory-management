@@ -475,11 +475,7 @@ export default function App() {
           </button>
         ))}
         <div style={{flex:1}}/>
-        <div style={{display:"flex",alignItems:"center",gap:4,marginRight:8,background:"#f3f4f6",borderRadius:999,padding:"3px 8px"}}>
-          <button onClick={()=>setFontScale(s=>Math.max(0.8,+(s-0.05).toFixed(2)))} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#6b7280",padding:"2px 6px",borderRadius:999,transition:"all 0.18s",fontFamily:"inherit"}} onMouseEnter={e=>e.currentTarget.style.background="#e5e7eb"} onMouseLeave={e=>e.currentTarget.style.background="none"}>A−</button>
-          <span style={{fontSize:11,color:"#9ca3af",minWidth:32,textAlign:"center"}}>{Math.round(fontScale*100)}%</span>
-          <button onClick={()=>setFontScale(s=>Math.min(1.4,+(s+0.05).toFixed(2)))} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#6b7280",padding:"2px 6px",borderRadius:999,transition:"all 0.18s",fontFamily:"inherit"}} onMouseEnter={e=>e.currentTarget.style.background="#e5e7eb"} onMouseLeave={e=>e.currentTarget.style.background="none"}>A+</button>
-        </div>
+
         <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#800020",color:"#fff",border:"none",borderRadius:999,padding:"9px 22px",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,cursor:"pointer",transition:"all 0.18s",boxShadow:"0 2px 8px rgba(128,0,32,0.3)"}} onMouseEnter={e=>{e.currentTarget.style.background="#1C1C1E";e.currentTarget.style.color="#80DEEA";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.35)";}} onMouseLeave={e=>{e.currentTarget.style.background="#800020";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 8px rgba(128,0,32,0.3)";}}>＋ 新增批號</button>
       </div>
 
