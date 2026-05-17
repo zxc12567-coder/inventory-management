@@ -110,7 +110,7 @@ const COLS=[
   {k:"product_no",  lbl:"產品編號",  w:130,ed:true},
   {k:"name",       lbl:"商品名稱", w:170,ed:true},
   {k:"category",   lbl:"類別",     w:85, ed:true,type:"sel"},
-  {k:"expiry_date",lbl:"有效日期", w:115,ed:true,type:"date"},
+  {k:"expiry_date",lbl:"有效日期", w:160,ed:true,type:"date"},
   {k:"_days",      lbl:"剩餘天數", w:85, ed:false},
   {k:"_tier",      lbl:"燈號",     w:95, ed:false},
   {k:"qty",        lbl:"庫存量",   w:70, ed:true,type:"num"},
@@ -617,7 +617,7 @@ export default function App() {
                                           return(
                                             <div key={bt.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 6px",borderRadius:5,background:bi%2===0?"#f8fafc":"#fff",marginBottom:2}}>
                                               <span style={{fontSize:10,color:"#9ca3af",minWidth:20,fontWeight:600}}>#{bi+1}</span>
-                                              <span style={{fontSize:11,color:"#374151",fontWeight:500,flex:1}}>{bt.expiry_date?bt.expiry_date.slice(0,10):"無效期"}</span>
+                                              <span style={{fontSize:11,color:"#374151",fontWeight:500,flex:1,whiteSpace:"nowrap"}}>{bt.expiry_date?bt.expiry_date.slice(0,10):"無效期"}</span>
                                               <span style={{fontSize:11,color:"#111827",fontWeight:600,minWidth:40,textAlign:"right"}}>{bt.qty}{bt.unit}</span>
                                               <span style={{background:btTm.bg,color:btTm.color,border:`1px solid ${btTm.border}`,padding:"1px 5px",borderRadius:4,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>{btTm.label}</span>
                                             </div>
@@ -885,7 +885,7 @@ export default function App() {
               {id:"rawdata", icon:"📦",lbl:"原始資料"},
               {id:"export",  icon:"⬇️", lbl:"資料匯出"},
               {id:"autobot", icon:"⚡",lbl:"自動推播說明"},
-              {id:"devguide",icon:"📖",lbl:"開發手冊"},
+              {id:"devguide",icon:"📖",lbl:"開發手冊"},{id:"cleanup",icon:"🧹",lbl:"清理"},
             ].map(t=>(
               <button key={t.id} onClick={()=>setAdminTab(t.id)} style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",background:adminTab===t.id?"#eff6ff":"transparent",border:"none",borderLeft:adminTab===t.id?"3px solid #2563eb":"3px solid transparent",color:adminTab===t.id?"#2563eb":"#4b5563",padding:"9px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:adminTab===t.id?600:400}}>
                 <span>{t.icon}</span><span>{t.lbl}</span>
@@ -973,6 +973,33 @@ export default function App() {
                     {items.length>60&&<div style={{padding:"8px 14px",color:"#9ca3af",fontSize:11}}>顯示前 60 筆，共 {items.length} 筆</div>}
                     {items.length===0&&<div style={{padding:40,textAlign:"center",color:"#9ca3af"}}>尚無資料</div>}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {adminTab==="cleanup"&&(
+              <div style={{maxWidth:540}}>
+                <div style={aH1}>🧹 資料清理</div>
+                <div style={{...aBox,borderColor:"#fca5a5",background:"#fef2f2"}}>
+                  <div style={aH2}>清除無效期重複批次</div>
+                  <div style={{fontSize:13,color:"#374151",marginBottom:12}}>找出同條碼有多筆批次，且其中有「無效期」的資料，自動刪除無效期的那筆，保留有效期的批次。</div>
+                  <div style={{fontSize:12,color:"#6b7280",marginBottom:16}}>⚠️ 刪除後無法復原，請確認後再執行。</div>
+                  <button onClick={async()=>{
+                    const barcodeMap={};
+                    items.forEach(b=>{const key=String(b.barcode||"").trim();if(!key)return;if(!barcodeMap[key])barcodeMap[key]=[];barcodeMap[key].push(b);});
+                    const toDelete=[];
+                    Object.values(barcodeMap).forEach(group=>{
+                      if(group.length<=1)return;
+                      const noDateOnes=group.filter(b=>!b.expiry_date);
+                      noDateOnes.forEach(b=>toDelete.push(b.id));
+                    });
+                    if(toDelete.length===0){showToast("沒有需要清除的資料 ✅");return;}
+                    if(!window.confirm(`確定要刪除 ${toDelete.length} 筆無效期重複批次嗎？`))return;
+                    await deleteItems(new Set(toDelete));
+                    showToast(`✅ 已清除 ${toDelete.length} 筆無效期重複批次`);
+                  }} style={{background:"#dc2626",color:"#fff",border:"none",borderRadius:999,padding:"10px 24px",fontSize:13,fontFamily:"inherit",fontWeight:600,cursor:"pointer",transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#991b1b";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="#dc2626";e.currentTarget.style.transform="translateY(0)";}}>
+                    🧹 立即清除無效期重複批次
+                  </button>
                 </div>
               </div>
             )}
