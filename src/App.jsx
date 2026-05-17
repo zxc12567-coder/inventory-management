@@ -595,10 +595,10 @@ export default function App() {
                           if(col.k==="_days")disp=row._days===null?"—":row._days<0?`${row._days}天`:`+${row._days}天`;
                           if(col.k==="_tier")disp=tm.label;
                           return (
-                            <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",cursor:col.ed?"cell":"default",fontSize:12,userSelect:"text",
+                            <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",cursor:col.ed?"cell":"default",fontSize:12,
                               color:col.k==="_days"?tm.color:col.k==="name"?"#111827":col.k==="barcode"?"#2563eb":"#4b5563",
                               background:isEd?"#eff6ff":"transparent",outline:isEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                              onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(row.id,col.k,row[col.k])}}>
+                              onDoubleClick={()=>col.ed&&startEdit(row.id,col.k,row[col.k])}>
                               {isEd?(col.type==="sel"?(<select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>{dynCats.map(c=><option key={c}>{c}</option>)}</select>):(<input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>)):(
                                 col.k==="_tier"&&row._tier!=="none"?(
                                   <span style={{background:tm.bg,color:tm.color,border:`1px solid ${tm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
@@ -647,22 +647,17 @@ export default function App() {
                             {COLS.map(col=>{
                               const isSubEd=editCell?.id===sub.id&&editCell?.k===col.k;
                               const subDays2=daysLeft(sub.expiry_date);const subTier2=tierOf(subDays2);const subTm2=TIER[subTier2];
-                              // 子批次只顯示這些欄位，其他空白
-                              const showCols=["expiry_date","_days","_tier","qty","unit","cost","price","location","note"];
-                              if(!showCols.includes(col.k)){
-                                return <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",borderRight:"1px solid #f1f5f9"}}/>;
-                              }
                               let disp=sub[col.k]??"";
                               if(col.k==="_days")disp=subDays2===null?"—":subDays2<0?`${subDays2}天`:`+${subDays2}天`;
                               if(col.k==="_tier")disp=subTm2.label;
                               return(
                                 <div key={col.k}
                                   style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",fontSize:12,
-                                    color:col.k==="_days"?subTm2.color:"#374151",
+                                    color:col.k==="_days"?subTm2.color:col.k==="barcode"?"#2563eb":"#374151",
                                     cursor:col.ed?"cell":"default",
                                     background:isSubEd?"#dbeafe":"transparent",
                                     outline:isSubEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
-                                  onDoubleClick={e=>{const sel=window.getSelection();if(sel&&sel.type==="Range"&&sel.toString().length>0)return;window.getSelection()?.removeAllRanges();col.ed&&startEdit(sub.id,col.k,sub[col.k])}}>
+                                  onDoubleClick={()=>col.ed&&startEdit(sub.id,col.k,sub[col.k])}>
                                   {isSubEd?(
                                     col.type==="sel"?(
                                       <select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>
@@ -675,7 +670,7 @@ export default function App() {
                                     col.k==="_tier"&&subTier2!=="none"?(
                                       <span style={{background:subTm2.bg,color:subTm2.color,border:`1px solid ${subTm2.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
                                     ):(
-                                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500,...(col.k==="cost"||col.k==="price"?{color:"#16a34a"}:{})}}>
+                                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:col.k==="name"?500:400,...(col.k==="cost"||col.k==="price"?{color:"#16a34a",fontWeight:500}:{})}}>
                                         {col.k==="cost"||col.k==="price"?fmtMoney(disp):String(disp)}
                                       </span>
                                     )
