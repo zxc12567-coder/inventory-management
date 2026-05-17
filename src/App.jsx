@@ -423,10 +423,11 @@ export default function App() {
   ];
 
   return (
-    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#f3f4f6",color:"#111827",fontFamily:"'Noto Sans TC',Arial,sans-serif",overflow:"hidden",fontSize:`${fontScale}rem`}}>
+    <div style={{height:"100vh",display:"flex",flexDirection:"column",background:"#f3f4f6",color:"#111827",fontFamily:"'Noto Sans TC',Arial,sans-serif",overflow:"hidden",fontSize:`${fontScale*14}px`}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;}
+        html,body,#root{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;}
         ::-webkit-scrollbar{width:6px;height:6px;}
         ::-webkit-scrollbar-track{background:#f1f5f9;}
         ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
