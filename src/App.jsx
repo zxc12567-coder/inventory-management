@@ -395,8 +395,9 @@ export default function App() {
 
       {/* TOP BAR */}
       <div style={{background:"#fff",borderBottom:"1px solid #e5e7eb",height:56,display:"flex",alignItems:"center",padding:"0 16px",gap:8,flexShrink:0,overflowX:"auto",boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:0,marginRight:8,flexShrink:0,background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:999,padding:"5px 16px 5px 5px",boxShadow:"0 2px 8px rgba(37,99,235,0.25)"}}>
-          <div style={{width:32,height:32,borderRadius:999,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:12,marginRight:8,letterSpacing:0.5}}>QYIM</div>
+        <div style={{display:"inline-flex",alignItems:"center",marginRight:8,flexShrink:0,background:"linear-gradient(135deg,#2563eb,#7c3aed)",borderRadius:999,padding:"6px 18px",boxShadow:"0 2px 8px rgba(37,99,235,0.25)",gap:6}}>
+          <span style={{fontWeight:800,fontSize:13,color:"rgba(255,255,255,0.7)",letterSpacing:1}}>QYIM</span>
+          <span style={{width:1,height:14,background:"rgba(255,255,255,0.35)",display:"inline-block"}}/>
           <span style={{fontWeight:700,fontSize:14,color:"#fff",letterSpacing:0.5,whiteSpace:"nowrap"}}>庫存有效管理</span>
         </div>
         <div style={{width:1,height:24,background:"#e5e7eb",margin:"0 4px",flexShrink:0}}/>
@@ -408,12 +409,12 @@ export default function App() {
         <div style={{width:1,height:24,background:"#e5e7eb",margin:"0 4px",flexShrink:0}}/>
         {/* Tabs */}
         {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:tab===t.id?"#eff6ff":"transparent",border:"none",borderRadius:999,color:tab===t.id?"#2563eb":"#6b7280",padding:"6px 14px",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,transition:"all 0.18s",cursor:"pointer"}} onMouseEnter={e=>{if(tab!==t.id){e.currentTarget.style.background="#f0f4ff";e.currentTarget.style.color="#2563eb";}}} onMouseLeave={e=>{if(tab!==t.id){e.currentTarget.style.background="transparent";e.currentTarget.style.color="#6b7280";}}}>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:tab===t.id?"#1d4ed8":"#e5e7eb",border:"none",borderRadius:999,color:tab===t.id?"#fff":"#374151",padding:"6px 14px",fontSize:12,fontFamily:"inherit",fontWeight:tab===t.id?600:400,flexShrink:0,transition:"all 0.18s",cursor:"pointer",boxShadow:tab===t.id?"0 4px 12px rgba(37,99,235,0.35)":"none"}} onMouseEnter={e=>{if(tab!==t.id){e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 12px rgba(37,99,235,0.35)";}}} onMouseLeave={e=>{if(tab!==t.id){e.currentTarget.style.background="#e5e7eb";e.currentTarget.style.color="#374151";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}}>
             {t.icon} {t.lbl}
           </button>
         ))}
         <div style={{flex:1}}/>
-        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#e5e7eb",color:"#374151",border:"none",borderRadius:999,padding:"9px 22px",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,cursor:"pointer",transition:"all 0.18s"}} onMouseEnter={e=>{e.currentTarget.style.background="#1d4ed8";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(37,99,235,0.35)";}} onMouseLeave={e=>{e.currentTarget.style.background="#e5e7eb";e.currentTarget.style.color="#374151";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="none";}}>＋ 新增批號</button>
+        <button onClick={()=>{setForm(newBatch());setShowForm(true);}} style={{background:"#800020",color:"#fff",border:"none",borderRadius:999,padding:"9px 22px",fontSize:13,fontFamily:"inherit",fontWeight:600,flexShrink:0,cursor:"pointer",transition:"all 0.18s",boxShadow:"0 2px 8px rgba(128,0,32,0.3)"}} onMouseEnter={e=>{e.currentTarget.style.background="#1C1C1E";e.currentTarget.style.color="#80DEEA";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.35)";}} onMouseLeave={e=>{e.currentTarget.style.background="#800020";e.currentTarget.style.color="#fff";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 2px 8px rgba(128,0,32,0.3)";}}>＋ 新增批號</button>
       </div>
 
       {/* STATS BAR */}
