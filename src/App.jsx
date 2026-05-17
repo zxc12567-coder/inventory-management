@@ -636,29 +636,44 @@ export default function App() {
                           );
                         })}
                       </div>
-                      {/* 子批次列 - 縮排顯示 */}
+                      {/* 子批次列 - 縮排顯示，支援雙擊編輯 */}
                       {row._subBatches&&row._subBatches.map((sub,si)=>{
                         const subDays=daysLeft(sub.expiry_date);const subTier=tierOf(subDays);const subTm=TIER[subTier];
                         return(
                           <div key={sub.id} style={{display:"flex",height:ROW_H,alignItems:"center",background:"#f0f7ff",borderBottom:si===row._subBatches.length-1?"1px solid #f1f5f9":"1px solid #e8f0fe",borderLeft:"3px solid #93c5fd"}}>
-                            <div style={{width:46,minWidth:46,borderRight:"1px solid #f1f5f9"}}/>
+                            <div style={{width:46,minWidth:46,borderRight:"1px solid #f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <span style={{color:"#93c5fd",fontSize:12}}>└</span>
+                            </div>
                             {COLS.map(col=>{
-                              // 子批次只顯示有效日期、剩餘天數、燈號、庫存量、單位
-                              const showCols=["expiry_date","_days","_tier","qty","unit"];
-                              if(!showCols.includes(col.k))return(
-                                <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",borderRight:"1px solid #f1f5f9",display:"flex",alignItems:"center",paddingLeft:col.k===COLS[0].k?32:10}}>
-                                  {col.k===COLS[0].k&&<span style={{color:"#93c5fd",fontSize:11,marginLeft:8}}>└─</span>}
-                                </div>
-                              );
+                              const isSubEd=editCell?.id===sub.id&&editCell?.k===col.k;
+                              const subDays2=daysLeft(sub.expiry_date);const subTier2=tierOf(subDays2);const subTm2=TIER[subTier2];
                               let disp=sub[col.k]??"";
-                              if(col.k==="_days")disp=subDays===null?"—":subDays<0?`${subDays}天`:`+${subDays}天`;
-                              if(col.k==="_tier")disp=subTm.label;
+                              if(col.k==="_days")disp=subDays2===null?"—":subDays2<0?`${subDays2}天`:`+${subDays2}天`;
+                              if(col.k==="_tier")disp=subTm2.label;
                               return(
-                                <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",fontSize:12,color:col.k==="_days"?subTm.color:"#374151"}}>
-                                  {col.k==="_tier"&&subTier!=="none"?(
-                                    <span style={{background:subTm.bg,color:subTm.color,border:`1px solid ${subTm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
+                                <div key={col.k}
+                                  style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",fontSize:12,
+                                    color:col.k==="_days"?subTm2.color:col.k==="barcode"?"#2563eb":"#374151",
+                                    cursor:col.ed?"cell":"default",
+                                    background:isSubEd?"#dbeafe":"transparent",
+                                    outline:isSubEd?"2px solid #3b82f6":"none",outlineOffset:"-2px"}}
+                                  onDoubleClick={()=>col.ed&&startEdit(sub.id,col.k,sub[col.k])}>
+                                  {isSubEd?(
+                                    col.type==="sel"?(
+                                      <select autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} style={{width:"100%",background:"#fff",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}>
+                                        {dynCats.map(c=><option key={c}>{c}</option>)}
+                                      </select>
+                                    ):(
+                                      <input ref={editRef} value={editVal} type={col.type==="num"?"number":col.type==="date"?"date":"text"} onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit} onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")setEditCell(null);}} style={{width:"100%",background:"transparent",border:"none",color:"#111827",fontSize:12,fontFamily:"inherit"}}/>
+                                    )
                                   ):(
-                                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{String(disp)}</span>
+                                    col.k==="_tier"&&subTier2!=="none"?(
+                                      <span style={{background:subTm2.bg,color:subTm2.color,border:`1px solid ${subTm2.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
+                                    ):(
+                                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:col.k==="name"?500:400,...(col.k==="cost"||col.k==="price"?{color:"#16a34a",fontWeight:500}:{})}}>
+                                        {col.k==="cost"||col.k==="price"?fmtMoney(disp):String(disp)}
+                                      </span>
+                                    )
                                   )}
                                 </div>
                               );
