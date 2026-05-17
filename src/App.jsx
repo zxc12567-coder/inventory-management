@@ -9,11 +9,19 @@ const TABLE = "inventory_batches";
 const sb = {
   async select(table) {
     if (!SUPABASE_URL) return { data: [], error: null };
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?order=expiry_date.asc`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    if (!res.ok) return { data: [], error: await res.text() };
-    return { data: await res.json(), error: null };
+    const limit = 1000;
+    let all = [], offset = 0;
+    while (true) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?order=expiry_date.asc&limit=${limit}&offset=${offset}`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, Prefer: "count=none" },
+      });
+      if (!res.ok) return { data: [], error: await res.text() };
+      const batch = await res.json();
+      all = [...all, ...batch];
+      if (batch.length < limit) break;
+      offset += limit;
+    }
+    return { data: all, error: null };
   },
   async upsert(table, row) {
     if (!SUPABASE_URL) return { error: null };
@@ -196,6 +204,8 @@ export default function App() {
   const [stBarcodes,setStBarcodes] = useState("");
   const [stOperator,setStOp]     = useState("");
   const [stPending,setStPending] = useState(null);
+  const [page,setPage]           = useState(1);
+  const PAGE_SIZE = 1000;
 
   const gridRef = useRef(null);
   const editRef = useRef(null);
@@ -238,8 +248,11 @@ export default function App() {
     return r;
   },[items,search,filterTier,filterCat,sortK,sortD]);
 
-  const {s:vs,e:ve,totalH,offsetY}=useVScroll(rows.length,gridRef);
-  const visRows=rows.slice(vs,ve+1);
+  const totalPages=Math.ceil(rows.length/PAGE_SIZE);
+  const pagedRows=rows.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  useEffect(()=>setPage(1),[search,filterTier,filterCat]);
+  const {s:vs,e:ve,totalH,offsetY}=useVScroll(pagedRows.length,gridRef);
+  const visRows=pagedRows.slice(vs,ve+1);
 
   const stats=useMemo(()=>{
     const c={total:items.length,expired:0,red:0,yellow:0,green:0,safe:0};let tv=0,rv=0;
@@ -509,8 +522,15 @@ export default function App() {
           </div>
           <div style={{background:"#f8fafc",borderTop:"1px solid #e2e8f0",padding:"5px 16px",fontSize:11,color:"#9ca3af",display:"flex",gap:12,alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <span>顯示 {rows.length} / {items.length} 筆</span><span>·</span><span>雙擊儲存格可直接編輯</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
+              <span>顯示 {(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE,rows.length)} / {rows.length} 筆（共 {items.length} 筆）</span><span>·</span><span>{isOnline?"✅ 已同步 Supabase":"💾 IndexedDB 本機"}</span>
             </div>
+            {totalPages>1&&<div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} style={{background:page===1?"#f3f4f6":"#fff",border:"1px solid #e5e7eb",color:page===1?"#d1d5db":"#374151",padding:"3px 10px",borderRadius:5,cursor:page===1?"default":"pointer",fontSize:11,fontFamily:"inherit"}}>‹ 上一頁</button>
+              {Array.from({length:totalPages},(_,i)=>i+1).map(p=>(
+                <button key={p} onClick={()=>setPage(p)} style={{background:p===page?"#2563eb":"#fff",border:"1px solid #e5e7eb",color:p===page?"#fff":"#374151",padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:p===page?700:400}}>{p}</button>
+              ))}
+              <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} style={{background:page===totalPages?"#f3f4f6":"#fff",border:"1px solid #e5e7eb",color:page===totalPages?"#d1d5db":"#374151",padding:"3px 10px",borderRadius:5,cursor:page===totalPages?"default":"pointer",fontSize:11,fontFamily:"inherit"}}>下一頁 ›</button>
+            </div>}
             <button onClick={()=>{const r=rows.map(b=>({條碼:b.barcode,商品名稱:b.name,批號:b.batch_no,有效日期:b.expiry_date?b.expiry_date.slice(0,10):"",類別:b.category||"",庫存量:b.qty,單位:b.unit||"",成本:b.cost||"",售價:b.price||"",儲位:b.location||"",供應商:b.supplier||"",備註:b.note||"",剩餘天數:daysLeft(b.expiry_date)??"",狀態:TIER[tierOf(daysLeft(b.expiry_date))].label}));const ws=XLSX.utils.json_to_sheet(r);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"庫存");XLSX.writeFile(wb,`inventory_filter_${new Date().toISOString().slice(0,10)}.xlsx`);showToast("匯出完成 ✅");}} style={{background:"#2563eb",border:"none",color:"#fff",padding:"4px 12px",borderRadius:5,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap"}}>⬇ 匯出篩選結果</button>
           </div>
         </div>
