@@ -256,18 +256,23 @@ export default function App() {
     if(filterTier!=="all")r=r.filter(x=>x._tier===filterTier);
     if(filterCat!=="all")r=r.filter(x=>x.category===filterCat);
     r.sort((a,b)=>{ let av=a[sortK]??"",bv=b[sortK]??""; if(sortK==="_days"){av=a._days??9999;bv=b._days??9999;} return(typeof av==="number"?av-bv:String(av).localeCompare(String(bv),"zh"))*sortD; });
-    // 標記每個條碼的批次資訊
+    // 同條碼分組，只保留主列（第一批），子批次放在 _subBatches
     const barcodeMap={};
     r.forEach(row=>{
       const key=String(row.barcode||"").trim()||row.id;
       if(!barcodeMap[key])barcodeMap[key]=[];
       barcodeMap[key].push(row);
     });
-    return r.map(row=>{
+    const seen=new Set();
+    const grouped=[];
+    r.forEach(row=>{
       const key=String(row.barcode||"").trim()||row.id;
-      const batches=barcodeMap[key];
-      return {...row,_batches:batches,_batchCount:batches.length,_isFirstBatch:batches[0].id===row.id};
+      if(seen.has(key))return;
+      seen.add(key);
+      const batches=barcodeMap[key].sort((a,b)=>(a.expiry_date||"zzz")>(b.expiry_date||"zzz")?1:-1);
+      grouped.push({...batches[0],_batches:batches,_batchCount:batches.length,_subBatches:batches.slice(1)});
     });
+    return grouped;
   },[items,search,filterTier,filterCat,sortK,sortD]);
 
   const totalPages=Math.ceil(rows.length/PAGE_SIZE);
@@ -321,6 +326,10 @@ export default function App() {
         let ok=0,updated=0;
         setImporting(true);
         setImportProgress({current:0,total:raw.length});
+        // 用 localItems 即時追蹤本次匯入過程中的狀態（包含新增的批次）
+        let localItems=[...items];
+        // 追蹤本次已處理的「條碼+效期」組合，避免重複
+        const processedKeys=new Set();
         for(const row of raw){
           const b=newBatch();
           Object.entries(row).forEach(([k,v])=>{ const mk=MAP[k.trim()];if(!mk)return;if(mk==="expiry_date"){const toLocal=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dd=String(d.getDate()).padStart(2,"0");return y+"-"+m+"-"+dd;};b[mk]=v instanceof Date?toLocal(v):typeof v==="string"&&v?toLocal(new Date(v)):"";}else b[mk]=v; });
@@ -328,51 +337,60 @@ export default function App() {
           const barcode=String(b.barcode||"").trim();
           const productNo=String(b.product_no||"").trim();
           const expiryDate=String(b.expiry_date||"").trim();
+          const processKey=`${barcode}__${expiryDate}`;
 
-          // 同條碼所有現有批次
-          const sameBarcodeAll=barcode?items.filter(x=>String(x.barcode||"").trim()===barcode):[];
+          // 已處理過相同條碼+效期 → 跳過
+          if(processedKeys.has(processKey)){ok++;setImportProgress({current:ok,total:raw.length});continue;}
+
+          // 從 localItems 找同條碼所有批次
+          const sameBarcodeAll=barcode?localItems.filter(x=>String(x.barcode||"").trim()===barcode):[];
 
           // 1. 完全相同（條碼+效期）→ 更新同一批
           const exactMatch=barcode&&expiryDate
             ?sameBarcodeAll.find(x=>String(x.expiry_date||"").trim()===expiryDate)
             :null;
 
-          // 2. 條碼相同，但系統只有一筆且無效期 → 視為「空殼」，直接更新填入效期
-          const emptyShell=!exactMatch&&barcode&&expiryDate&&sameBarcodeAll.length===1&&!sameBarcodeAll[0].expiry_date
-            ?sameBarcodeAll[0]
+          // 2. 條碼相同，有一筆無效期且本次是第一批 → 視為空殼，更新填入效期
+          const shellRecord=!exactMatch&&barcode&&expiryDate
+            ?sameBarcodeAll.find(x=>!String(x.expiry_date||"").trim())
             :null;
 
           // 3. 無條碼，用產品編號+無效期找空殼
-          const noBarcodShell=!exactMatch&&!emptyShell&&!barcode&&productNo&&expiryDate
-            ?items.find(x=>String(x.product_no||"").trim()===productNo&&!x.expiry_date)
+          const noBarcodShell=!exactMatch&&!shellRecord&&!barcode&&productNo&&expiryDate
+            ?localItems.find(x=>String(x.product_no||"").trim()===productNo&&!x.expiry_date)
             :null;
 
-          const existing=exactMatch||emptyShell||noBarcodShell;
+          const existing=exactMatch||shellRecord||noBarcodShell;
 
           if(existing){
-            // 更新現有批次，保留空白欄位原值
             const merged={...existing};
             Object.entries(b).forEach(([k,v])=>{
               if(k==="id"||k==="created_at")return;
               const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
               if(!isEmpty)merged[k]=v;
             });
-            await saveItem({...merged,id:existing.id,created_at:existing.created_at});
+            const saved={...merged,id:existing.id,created_at:existing.created_at};
+            await saveItem(saved);
+            // 更新 localItems 中對應的那筆
+            localItems=localItems.map(x=>x.id===existing.id?saved:x);
+            processedKeys.add(processKey);
             updated++;
           } else {
-            // 條碼相同但效期不同 → 新批次，繼承同條碼的基本資料
+            // 新批次：繼承同條碼基本資料
+            let newItem=b;
             if(barcode&&sameBarcodeAll.length>0){
               const base=sameBarcodeAll[0];
-              const inherited={...base,id:genId(),created_at:new Date().toISOString()};
+              newItem={...base,id:genId(),created_at:new Date().toISOString()};
               Object.entries(b).forEach(([k,v])=>{
                 if(k==="id"||k==="created_at")return;
                 const isEmpty=v===null||v===undefined||String(v).trim()===""||((k==="cost"||k==="price")?`${v}`==="0":false);
-                if(!isEmpty)inherited[k]=v;
+                if(!isEmpty)newItem[k]=v;
               });
-              await saveItem(inherited);
-            } else {
-              await saveItem(b);
             }
+            await saveItem(newItem);
+            // 即時加入 localItems
+            localItems=[...localItems,newItem];
+            processedKeys.add(processKey);
           }
           ok++;
           setImportProgress({current:ok,total:raw.length});
@@ -566,7 +584,8 @@ export default function App() {
                   {visRows.map((row,vi)=>{
                     const isSel=selected.has(row.id); const tm=TIER[row._tier];
                     return (
-                      <div key={row.id} className="rh" style={{display:"flex",height:ROW_H,alignItems:"center",background:isSel?"#eff6ff":(vs+vi)%2===0?"#fff":"#fafafa",borderBottom:"1px solid #f1f5f9",borderLeft:isSel?"3px solid #2563eb":"3px solid transparent"}}>
+                      <div key={row.id}>
+                      <div className="rh" style={{display:"flex",height:ROW_H,alignItems:"center",background:isSel?"#eff6ff":(vs+vi)%2===0?"#fff":"#fafafa",borderBottom:row._subBatches?.length?"none":"1px solid #f1f5f9",borderLeft:isSel?"3px solid #2563eb":"3px solid transparent"}}>
                         <div style={{width:46,minWidth:46,padding:"0 12px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9"}}>
                           <input type="checkbox" checked={isSel} onChange={()=>setSelected(prev=>{const n=new Set(prev);n.has(row.id)?n.delete(row.id):n.add(row.id);return n;})} style={{accentColor:"#2563eb",cursor:"pointer",width:15,height:15}}/>
                         </div>
@@ -616,6 +635,37 @@ export default function App() {
                             </div>
                           );
                         })}
+                      </div>
+                      {/* 子批次列 - 縮排顯示 */}
+                      {row._subBatches&&row._subBatches.map((sub,si)=>{
+                        const subDays=daysLeft(sub.expiry_date);const subTier=tierOf(subDays);const subTm=TIER[subTier];
+                        return(
+                          <div key={sub.id} style={{display:"flex",height:ROW_H,alignItems:"center",background:"#f0f7ff",borderBottom:si===row._subBatches.length-1?"1px solid #f1f5f9":"1px solid #e8f0fe",borderLeft:"3px solid #93c5fd"}}>
+                            <div style={{width:46,minWidth:46,borderRight:"1px solid #f1f5f9"}}/>
+                            {COLS.map(col=>{
+                              // 子批次只顯示有效日期、剩餘天數、燈號、庫存量、單位
+                              const showCols=["expiry_date","_days","_tier","qty","unit"];
+                              if(!showCols.includes(col.k))return(
+                                <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",borderRight:"1px solid #f1f5f9",display:"flex",alignItems:"center",paddingLeft:col.k===COLS[0].k?32:10}}>
+                                  {col.k===COLS[0].k&&<span style={{color:"#93c5fd",fontSize:11,marginLeft:8}}>└─</span>}
+                                </div>
+                              );
+                              let disp=sub[col.k]??"";
+                              if(col.k==="_days")disp=subDays===null?"—":subDays<0?`${subDays}天`:`+${subDays}天`;
+                              if(col.k==="_tier")disp=subTm.label;
+                              return(
+                                <div key={col.k} style={{width:colW[col.k],minWidth:colW[col.k],height:"100%",padding:"0 10px",display:"flex",alignItems:"center",borderRight:"1px solid #f1f5f9",fontSize:12,color:col.k==="_days"?subTm.color:"#374151"}}>
+                                  {col.k==="_tier"&&subTier!=="none"?(
+                                    <span style={{background:subTm.bg,color:subTm.color,border:`1px solid ${subTm.border}`,padding:"2px 7px",borderRadius:4,fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{disp}</span>
+                                  ):(
+                                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:500}}>{String(disp)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                       </div>
                     );
                   })}
